@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      REACT_APP_BACKEND_URL: http://185.36.141.151:8001
+      REACT_APP_BOT_USERNAME: ${REACT_APP_BOT_USERNAME:-social_rent_bot}
+      HOST: 0.0.0.0
+      PORT: 3000
+      CHOKIDAR_USEPOLLING: true
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    driver: bridge

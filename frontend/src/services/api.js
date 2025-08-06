@@ -12,12 +12,13 @@ const api = axios.create({
 
 // Mock auth token for development
 const getMockToken = () => {
-  return btoa(JSON.stringify({
+  // Return JSON string directly (second option that backend supports)
+  return JSON.stringify({
     id: 123456789,
     first_name: 'Test',
     last_name: 'User',
     username: 'testuser'
-  }));
+  });
 };
 
 // Get auth token from Telegram or use mock
