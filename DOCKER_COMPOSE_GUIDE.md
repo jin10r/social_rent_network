@@ -31,6 +31,7 @@ Create a `.env` file in the project root with:
 ```
 # Database Configuration
 DATABASE_URL_INTERNAL=postgresql+asyncpg://postgres:postgres123@db:5432/social_rent
+DATABASE_URL_EXTERNAL=postgresql+asyncpg://postgres:postgres123@localhost:5435/social_rent
 
 # Telegram Bot Configuration
 BOT_TOKEN=your_telegram_bot_token
