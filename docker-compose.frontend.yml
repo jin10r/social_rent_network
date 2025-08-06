@@ -1,0 +1,100 @@
+# ===========================================
+# DOCKER COMPOSE ДЛЯ ЛОКАЛЬНОГО ФРОНТЕНДА
+# ===========================================
+# Этот файл запускает только Frontend для локальной разработки
+# Предполагается, что Backend работает на удаленном сервере
+# 
+# Запуск: docker-compose -f docker-compose.frontend.yml --env-file .env up -d
+
+version: '3.8'
+
+services:
+  # ===========================================
+  # FRONTEND (React приложение)
+  # ===========================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: social_rent_frontend
+    restart: unless-stopped
+    
+    environment:
+      # Подключение к удаленному backend
+      REACT_APP_BACKEND_URL: ${BACKEND_URL}
+      
+      # Настройки Telegram бота
+      REACT_APP_BOT_USERNAME: ${BOT_USERNAME}
+      
+      # Настройки сервера разработки React
+      HOST: ${FRONTEND_HOST}
+      PORT: ${FRONTEND_PORT}
+      
+      # Для корректной работы hot reload в Docker
+      CHOKIDAR_USEPOLLING: ${CHOKIDAR_USEPOLLING}
+      
+      # Дополнительные настройки React
+      GENERATE_SOURCEMAP: false
+      REACT_APP_ENVIRONMENT: ${ENVIRONMENT}
+      
+      # URL для веб-приложения (для Telegram)
+      REACT_APP_WEBAPP_URL: ${WEBAPP_URL}
+      
+    ports:
+      - "${FRONTEND_PORT}:${FRONTEND_PORT}"
+      
+    volumes:
+      # Монтируем исходный код для hot reload
+      - ./frontend:/app
+      - /app/node_modules
+      
+    networks:
+      - ${DOCKER_NETWORK_NAME}
+      
+    # Health check для frontend
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:${FRONTEND_PORT} || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+      
+    # Настройки для оптимальной работы в development режиме
+    stdin_open: true
+    tty: true
+
+  # ===========================================
+  # NGROK СЕРВИС (опционально)
+  # ===========================================
+  # Раскомментируйте, если хотите автоматически запускать ngrok
+  
+  # ngrok:
+  #   image: ngrok/ngrok:latest
+  #   container_name: social_rent_ngrok
+  #   restart: unless-stopped
+  #   
+  #   environment:
+  #     NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}  # Получите токен на ngrok.com
+  #   
+  #   command: 
+  #     - "http"
+  #     - "frontend:${FRONTEND_PORT}"
+  #     - "--log=stdout"
+  #   
+  #   ports:
+  #     - "4040:4040"  # Ngrok web interface
+  #   
+  #   depends_on:
+  #     frontend:
+  #       condition: service_healthy
+  #   
+  #   networks:
+  #     - ${DOCKER_NETWORK_NAME}
+
+# ===========================================
+# NETWORKS
+# ===========================================
+networks:
+  social_rent_network:
+    name: ${DOCKER_NETWORK_NAME}
+    driver: bridge
