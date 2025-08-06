@@ -8,7 +8,7 @@ from typing import AsyncGenerator
 import logging
 
 # Database URL
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres123@localhost:5432/social_rent")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres123@localhost:5433/social_rent")
 
 # Create async engine
 engine = create_async_engine(

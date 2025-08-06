@@ -282,7 +282,7 @@ async def main():
     """Main function"""
     # Определяем DATABASE_URL в зависимости от среды выполнения
     import os
-    DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres123@localhost:5432/social_rent")
+    DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres123@localhost:5433/social_rent")
     # Для совместимости с asyncpg убираем +asyncpg из URL
     if DATABASE_URL.startswith("postgresql+asyncpg://"):
         DATABASE_URL = DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://", 1)
