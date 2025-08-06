@@ -1,0 +1,91 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgis/postgis:15-3.3
+    environment:
+      POSTGRES_DB: social_rent
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - app_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres123@db:5432/social_rent
+      BOT_TOKEN: 8482163056:AAFO_l3IuliKB6I81JyQ-3_VrZuQ-8S5P-k
+      WEBAPP_URL: https://64023b94ce51.ngrok-free.app
+      GENERATE_TEST_DATA: "auto"
+    ports:
+      - "8001:8001"
+    depends_on:
+      - db
+    volumes:
+      - ./backend:/app
+    networks:
+      - app_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      REACT_APP_BACKEND_URL: http://backend:8001
+      REACT_APP_BOT_USERNAME: social_rent_bot
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - app_network
+
+  bot:
+    build:
+      context: ./bot
+      dockerfile: Dockerfile
+    environment:
+      BOT_TOKEN: 8482163056:AAFO_l3IuliKB6I81JyQ-3_VrZuQ-8S5P-k
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres123@db:5432/social_rent
+      WEBAPP_URL: https://64023b94ce51.ngrok-free.app
+      BACKEND_URL: http://backend:8001
+    depends_on:
+      - db
+      - backend
+    volumes:
+      - ./bot:/app
+    networks:
+      - app_network
+
+  # Сервис для генерации тестовых данных
+  test-data-generator:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.generator
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres123@db:5432/social_rent
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+    networks:
+      - app_network
+    # Этот сервис будет запускаться только по команде
+    command: ["tail", "-f", "/dev/null"]
+
+volumes:
+  postgres_data:
+
+networks:
+  app_network:
+    driver: bridge

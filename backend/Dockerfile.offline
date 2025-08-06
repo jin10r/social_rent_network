@@ -1,0 +1,29 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy offline packages and requirements
+COPY packages/python ./packages/python
+COPY requirements.txt .
+
+# Install Python dependencies offline
+# Use this method when packages/python directory exists
+RUN if [ -d "packages/python" ]; then \
+        pip install --no-index --find-links packages/python -r requirements.txt; \
+    else \
+        pip install --no-cache-dir -r requirements.txt; \
+    fi
+
+# Copy application code
+COPY . .
+
+# Expose port
+EXPOSE 8001
+
+# Command to run the application
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
