@@ -1,42 +1,159 @@
+# ==============================================================================
+# DOCKER COMPOSE ДЛЯ УДАЛЕННОГО СЕРВЕРА
+# ==============================================================================
+# Запускает: База данных + Backend + Telegram Bot
+# Используется на удаленном сервере
+# 
+# Запуск: docker-compose -f docker-compose.server.yml --env-file .env up -d
+# Остановка: docker-compose -f docker-compose.server.yml --env-file .env down
+# Логи: docker-compose -f docker-compose.server.yml --env-file .env logs -f
+
 version: '3.8'
+
 services:
+  # ==============================================================================
+  # БАЗА ДАННЫХ (PostgreSQL с PostGIS)
+  # ==============================================================================
   db:
     image: postgis/postgis:15-3.3
+    container_name: social_rent_db
+    restart: unless-stopped
+    
     environment:
-      POSTGRES_DB: social_rent
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres123
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      
     ports:
-      - "5435:5432"
+      - "${DB_EXTERNAL_PORT}:${DB_INTERNAL_PORT}"
+      
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - social_rent_postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      
     networks:
-      - app_network
+      - social_rent_network
+      
+    # Health check для проверки готовности базы данных
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
+  # ==============================================================================
+  # BACKEND (FastAPI)
+  # ==============================================================================
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    container_name: social_rent_backend
+    restart: unless-stopped
+    
     environment:
+      # Подключение к базе данных
       DATABASE_URL: ${DATABASE_URL_INTERNAL}
+      
+      # Telegram настройки
       BOT_TOKEN: ${BOT_TOKEN}
-      WEBAPP_URL: https://12ef1c8f81ac.ngrok-free.app
-      BACKEND_URL: http://185.36.141.151:8001
-      ALLOWED_ORIGINS: http://localhost:3000,https://12ef1c8f81ac.ngrok-free.app
-      GENERATE_TEST_DATA: "auto"
+      WEBAPP_URL: ${WEBAPP_URL}
+      BACKEND_URL: ${BACKEND_URL}
+      
+      # API настройки
+      API_PREFIX: ${API_PREFIX}
+      HOST: ${BACKEND_HOST}
+      PORT: ${BACKEND_PORT}
+      
+      # Безопасность и CORS
+      SECRET_KEY: ${SECRET_KEY}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      
+      # Окружение
+      ENVIRONMENT: ${ENVIRONMENT}
+      LOG_LEVEL: ${LOG_LEVEL}
+      
+      # Тестовые данные
+      GENERATE_TEST_DATA: ${GENERATE_TEST_DATA}
+      
     ports:
-      - "8001:8001"
+      - "${BACKEND_PORT}:${BACKEND_PORT}"
+      
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+        
     volumes:
       - ./backend:/app
+      
     networks:
-      - app_network
+      - social_rent_network
+      
+    # Health check для backend
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:${BACKEND_PORT}/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
+  # ==============================================================================
+  # TELEGRAM BOT
+  # ==============================================================================
+  bot:
+    build:
+      context: ./bot
+      dockerfile: Dockerfile
+    container_name: social_rent_bot
+    restart: unless-stopped
+    
+    environment:
+      # Telegram настройки
+      BOT_TOKEN: ${BOT_TOKEN}
+      WEBAPP_URL: ${WEBAPP_URL}
+      
+      # Подключение к базе данных
+      DATABASE_URL: ${DATABASE_URL_INTERNAL}
+      
+      # Подключение к backend
+      BACKEND_URL: http://backend:${BACKEND_PORT}
+      
+      # Окружение
+      ENVIRONMENT: ${ENVIRONMENT}
+      LOG_LEVEL: ${LOG_LEVEL}
+      
+    depends_on:
+      db:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+        
+    volumes:
+      - ./bot:/app
+      
+    networks:
+      - social_rent_network
+      
+    # Health check для бота (проверка процесса)
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'python.*main.py' || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+# ==============================================================================
+# VOLUMES
+# ==============================================================================
 volumes:
-  postgres_data:
+  social_rent_postgres_data:
+    name: ${POSTGRES_VOLUME_NAME}
 
+# ==============================================================================
+# NETWORKS  
+# ==============================================================================
 networks:
-  app_network:
+  social_rent_network:
+    name: ${DOCKER_NETWORK_NAME}
     driver: bridge
