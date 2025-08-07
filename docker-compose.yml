@@ -1,0 +1,109 @@
+# ==============================================================================
+# SOCIAL RENT - UNIFIED DOCKER COMPOSE
+# ==============================================================================
+# Запуск всех сервисов: Frontend + Backend + Database + Bot
+# Команды:
+#   Запуск: docker-compose up -d
+#   Остановка: docker-compose down
+#   Логи: docker-compose logs -f
+
+version: '3.8'
+
+services:
+  # ==============================================================================
+  # БАЗА ДАННЫХ (PostgreSQL)
+  # ==============================================================================
+  db:
+    image: postgis/postgis:15-3.3
+    container_name: social_rent_db
+    restart: unless-stopped
+    
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      
+    ports:
+      - "5432:5432"
+      
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      
+    networks:
+      - app_network
+      
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ==============================================================================
+  # UNIFIED APP (FastAPI + React Static Files)
+  # ==============================================================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.app
+    container_name: social_rent_app
+    restart: unless-stopped
+    
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      BOT_TOKEN: ${BOT_TOKEN}
+      WEBAPP_URL: ${WEBAPP_URL}
+      SECRET_KEY: ${SECRET_KEY}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      ENVIRONMENT: ${ENVIRONMENT}
+      LOG_LEVEL: ${LOG_LEVEL}
+      GENERATE_TEST_DATA: ${GENERATE_TEST_DATA}
+      
+    ports:
+      - "${APP_PORT}:8001"
+      
+    depends_on:
+      db:
+        condition: service_healthy
+        
+    volumes:
+      - ./backend:/app/backend
+      - ./frontend:/app/frontend
+      
+    networks:
+      - app_network
+
+  # ==============================================================================
+  # TELEGRAM BOT
+  # ==============================================================================
+  bot:
+    build:
+      context: ./bot
+      dockerfile: Dockerfile
+    container_name: social_rent_bot
+    restart: unless-stopped
+    
+    environment:
+      BOT_TOKEN: ${BOT_TOKEN}
+      WEBAPP_URL: ${WEBAPP_URL}
+      ENVIRONMENT: ${ENVIRONMENT}
+      LOG_LEVEL: ${LOG_LEVEL}
+      
+    depends_on:
+      - app
+        
+    volumes:
+      - ./bot:/app
+      
+    networks:
+      - app_network
+
+# ==============================================================================
+# VOLUMES & NETWORKS
+# ==============================================================================
+volumes:
+  postgres_data:
+
+networks:
+  app_network:
+    driver: bridge
