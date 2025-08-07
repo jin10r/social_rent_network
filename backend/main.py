@@ -327,6 +327,74 @@ async def get_user_liked_listings(
     listings = await listing_service.get_user_liked_listings(target_user_id)
     return listings
 
+# ==============================================================================
+# STATIC FILES SERVING FOR REACT FRONTEND
+# ==============================================================================
+
+# Path to built React files
+STATIC_FILES_PATH = Path("/app/static")
+
+# Mount static files (CSS, JS, images, etc.)
+if STATIC_FILES_PATH.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_FILES_PATH / "static")), name="static")
+    logger.info("✅ Static files mounted successfully")
+else:
+    logger.warning("⚠️ Static files directory not found")
+
+@app.get("/favicon.ico")
+async def favicon():
+    """Serve favicon"""
+    favicon_path = STATIC_FILES_PATH / "favicon.ico"
+    if favicon_path.exists():
+        return FileResponse(favicon_path)
+    raise HTTPException(status_code=404, detail="Favicon not found")
+
+@app.get("/manifest.json")
+async def manifest():
+    """Serve PWA manifest"""
+    manifest_path = STATIC_FILES_PATH / "manifest.json"
+    if manifest_path.exists():
+        return FileResponse(manifest_path, media_type="application/json")
+    raise HTTPException(status_code=404, detail="Manifest not found")
+
+@app.get("/{full_path:path}")
+async def serve_react_app(request: Request, full_path: str):
+    """
+    Serve React app for all non-API routes
+    This should be the last route to catch all frontend routes
+    """
+    # Don't serve React app for API routes
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="API endpoint not found")
+    
+    # Serve index.html for all frontend routes
+    index_path = STATIC_FILES_PATH / "index.html"
+    if index_path.exists():
+        return FileResponse(index_path, media_type="text/html")
+    else:
+        # Fallback HTML if React build is not available
+        return HTMLResponse("""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Social Rent</title>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+        </head>
+        <body>
+            <div id="root">
+                <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif;">
+                    <div style="text-align: center;">
+                        <h1>🏠 Social Rent</h1>
+                        <p>Frontend не найден. Выполните сборку React приложения.</p>
+                        <p><strong>API работает:</strong> <a href="/health" target="_blank">/health</a></p>
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+        """)
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)
