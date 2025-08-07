@@ -25,6 +25,8 @@ from schemas import (
 )
 from database import get_database, init_database, async_session_maker
 from auth import verify_telegram_auth, get_current_user
+# Импорт новой безопасной аутентификации
+from auth_new import verify_telegram_auth_secure, get_current_user_secure, create_or_get_user_from_telegram_data
 from services import UserService, ListingService, MatchingService
 from metro_stations import get_metro_stations_list, get_metro_station_info, search_metro_stations
 
