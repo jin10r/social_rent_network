@@ -11,8 +11,9 @@ import random
 from typing import Dict, List, Optional
 import uuid
 
-# Configuration
-BACKEND_URL = "http://localhost:8001"
+# Configuration - Testing through nginx reverse proxy
+NGINX_URL = "http://localhost:8080"
+BACKEND_URL = NGINX_URL  # Test through nginx proxy
 API_BASE = f"{BACKEND_URL}/api"
 
 # Test data - realistic Moscow users
