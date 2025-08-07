@@ -253,27 +253,40 @@ const Profile = () => {
       <div className="tg-header">
         <div className="flex justify-between items-center">
           <h1>Мой профиль</h1>
-          <button
-            className={`tg-button ${editing ? 'tg-button-secondary' : ''}`}
-            style={{ 
-              width: 'auto', 
-              minHeight: 'auto', 
-              padding: '8px 16px',
-              fontSize: '14px'
-            }}
-            onClick={() => {
-              console.log('Edit button clicked, editing:', !editing);
-              setEditing(!editing);
-              if (editing) {
-                setShowMetroSuggestions(false);
-              }
-            }}
-          >
-            <Edit3 size={16} />
-            <span style={{ marginLeft: '8px' }}>
-              {editing ? 'Отмена' : 'Редактировать'}
-            </span>
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Индикатор статуса аутентификации */}
+            {authStatus && (
+              <div style={{ fontSize: '12px' }}>
+                {authStatus.hasInitData ? (
+                  <CheckCircle size={16} color="green" />
+                ) : (
+                  <AlertCircle size={16} color="orange" />
+                )}
+              </div>
+            )}
+            <button
+              className={`tg-button ${editing ? 'tg-button-secondary' : ''}`}
+              style={{ 
+                width: 'auto', 
+                minHeight: 'auto', 
+                padding: '8px 16px',
+                fontSize: '14px'
+              }}
+              onClick={() => {
+                console.log('Edit button clicked, editing:', !editing);
+                setEditing(!editing);
+                if (editing) {
+                  setShowMetroSuggestions(false);
+                }
+                hapticFeedback('impact', 'light');
+              }}
+            >
+              <Edit3 size={16} />
+              <span style={{ marginLeft: '8px' }}>
+                {editing ? 'Отмена' : 'Редактировать'}
+              </span>
+            </button>
+          </div>
         </div>
       </div>
 
