@@ -1,107 +1,326 @@
-# Deployment Guide
+# 🚀 Руководство по развертыванию Social Rent App
 
-This guide explains how to deploy the application with the frontend and backend on separate servers.
+Пошаговое руководство по развертыванию приложения на двух машинах.
 
-## Backend Deployment (Server at 185.36.141.151)
+## 📋 Архитектура развертывания
 
-1. Copy the project files to the server:
-   ```bash
-   scp -r . user@185.36.141.151:/path/to/project
-   ```
+- **Удаленный сервер**: База данных + Backend API + Telegram Bot
+- **Локальная машина**: Frontend приложение (через ngrok для внешнего доступа)
 
-2. SSH into the server:
-   ```bash
-   ssh user@185.36.141.151
-   ```
+## 🔧 Предварительные требования
 
-3. Navigate to the project directory:
-   ```bash
-   cd /path/to/project
-   ```
+- Docker и Docker Compose установлены на обеих машинах
+- Доступ к удаленному серверу по SSH
+- Ngrok аккаунт для внешнего доступа к frontend
+- Telegram бот токен от @BotFather
 
-4. Create a `.env` file with the following content:
-   ```
-   # Database Configuration
-   DATABASE_URL_INTERNAL=postgresql+asyncpg://postgres:postgres123@db:5432/social_rent
-   DATABASE_URL_EXTERNAL=postgresql+asyncpg://postgres:postgres123@localhost:5435/social_rent
-   
-   # Telegram Bot Configuration
-   BOT_TOKEN=your_actual_bot_token_here
-   WEBAPP_URL=https://12ef1c8f81ac.ngrok-free.app
-   BACKEND_URL=http://185.36.141.151:8001
-   
-   # CORS Configuration
-   ALLOWED_ORIGINS=http://localhost:3000,https://12ef1c8f81ac.ngrok-free.app
-   ```
+## 🌍 Шаг 1: Настройка удаленного сервера
 
-5. Start the backend and database services:
-   ```bash
-   docker-compose -f docker-compose.server.yml up -d
-   ```
+### 1.1 Подготовка сервера
 
-6. Verify that the backend is running:
-   ```bash
-   curl http://185.36.141.151:8001/docs
-   ```
-
-## Frontend Deployment (Local Development)
-
-1. Create a `.env` file in the project root with the following content:
-   ```
-   # Backend API Configuration
-   REACT_APP_BACKEND_URL=http://185.36.141.151:8001
-   REACT_APP_BOT_USERNAME=your_bot_username
-   ```
-
-2. Start the frontend service:
-   ```bash
-   docker-compose -f docker-compose.local.yml up -d
-   ```
-
-3. Access the frontend at http://localhost:3000
-
-## Using Ngrok for External Access
-
-If you want to make the frontend accessible from the internet:
-
-1. Start ngrok to expose the frontend:
-   ```bash
-   ngrok http 3000
-   ```
-
-2. Note the ngrok URL provided (e.g., https://abcd-123-456-789-0.ngrok-free.app)
-
-3. Update the backend CORS configuration to allow this origin if needed:
-   ```
-   # In your backend .env file, update ALLOWED_ORIGINS:
-   ALLOWED_ORIGINS=http://localhost:3000,https://12ef1c8f81ac.ngrok-free.app,https://abcd-123-456-789-0.ngrok-free.app
-   ```
-
-4. Restart the backend service:
-   ```bash
-   docker-compose -f docker-compose.server.yml restart backend
-   ```
-
-## Testing the Connection
-
-Run the test script to verify that everything is configured correctly:
 ```bash
-./test-connection-specific.sh
+# Подключитесь к удаленному серверу
+ssh user@YOUR_SERVER_IP
+
+# Установите Docker (если не установлен)
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+
+# Установите Docker Compose
+sudo curl -L "https://github.com/docker/compose/releases/download/v2.23.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
 ```
 
-## Troubleshooting
+### 1.2 Копирование проекта
 
-1. If the frontend cannot connect to the backend:
-   - Verify that the backend is running at 185.36.141.151:8001
-   - Check that the firewall allows connections on port 8001
-   - Ensure the ALLOWED_ORIGINS in the backend includes the frontend origin
+```bash
+# Скопируйте проект на сервер
+scp -r /path/to/social-rent-app user@YOUR_SERVER_IP:/home/user/social-rent-app
 
-2. If CORS errors occur:
-   - Check the ALLOWED_ORIGINS environment variable in the backend
-   - Restart the backend service after making changes
+# Или используйте git
+git clone YOUR_REPOSITORY_URL /home/user/social-rent-app
+```
 
-3. If the database connection fails:
-   - Verify the database credentials in the .env file
-   - Check that the database service is running
-   - Verify that port 5435 is accessible on the server (for external connections)
-   - Check that the firewall allows connections on port 5435
+### 1.3 Настройка конфигурации
+
+```bash
+cd /home/user/social-rent-app
+
+# Отредактируйте .env файл
+nano .env
+```
+
+**Основные настройки для сервера:**
+```env
+# Замените на ваши значения
+BOT_TOKEN=YOUR_TELEGRAM_BOT_TOKEN_FROM_BOTFATHER
+SERVER_IP=YOUR_ACTUAL_SERVER_IP
+WEBAPP_URL=https://YOUR_NGROK_URL.ngrok-free.app
+BACKEND_URL=http://YOUR_ACTUAL_SERVER_IP:8001
+ALLOWED_ORIGINS=http://localhost:3000,https://YOUR_NGROK_URL.ngrok-free.app
+
+# Настройки базы данных (можете оставить как есть)
+POSTGRES_PASSWORD=CHANGE_THIS_IN_PRODUCTION
+DB_EXTERNAL_PORT=5432
+```
+
+### 1.4 Запуск сервисов на сервере
+
+```bash
+# Запуск всех серверных сервисов
+docker-compose -f docker-compose.server.yml --env-file .env up -d
+
+# Проверка статуса
+docker-compose -f docker-compose.server.yml ps
+
+# Просмотр логов
+docker-compose -f docker-compose.server.yml logs -f
+```
+
+### 1.5 Проверка работы сервера
+
+```bash
+# Проверка backend API
+curl http://YOUR_SERVER_IP:8001/health
+
+# Проверка документации API
+curl http://YOUR_SERVER_IP:8001/docs
+
+# Проверка базы данных
+docker exec -it social_rent_db psql -U postgres -d social_rent -c "\dt"
+```
+
+## 💻 Шаг 2: Настройка локальной машины
+
+### 2.1 Подготовка локального окружения
+
+```bash
+# Перейдите в директорию проекта на локальной машине
+cd /path/to/social-rent-app
+
+# Убедитесь, что Docker запущен
+docker --version
+docker-compose --version
+```
+
+### 2.2 Настройка локальной конфигурации  
+
+Отредактируйте `.env` файл для локального использования:
+
+```env
+# Backend подключение к удаленному серверу
+REACT_APP_BACKEND_URL=http://YOUR_SERVER_IP:8001
+REACT_APP_BOT_USERNAME=your_bot_username
+
+# Frontend настройки
+FRONTEND_PORT=3000
+```
+
+### 2.3 Настройка Ngrok
+
+```bash
+# Установите ngrok (если не установлен)
+# Для Ubuntu/Debian:
+curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+sudo apt update && sudo apt install ngrok
+
+# Для macOS:
+brew install ngrok/ngrok/ngrok
+
+# Авторизуйтесь в ngrok (получите токен на https://ngrok.com)
+ngrok config add-authtoken YOUR_NGROK_AUTH_TOKEN
+```
+
+### 2.4 Запуск локального frontend
+
+```bash
+# Запуск frontend
+docker-compose -f docker-compose.local.yml --env-file .env up -d
+
+# Проверка статуса
+docker-compose -f docker-compose.local.yml ps
+
+# Просмотр логов
+docker-compose -f docker-compose.local.yml logs -f frontend
+```
+
+### 2.5 Настройка Ngrok туннеля
+
+```bash
+# В новом терминале запустите ngrok
+ngrok http 3000
+
+# Скопируйте HTTPS URL из вывода (например: https://abc123.ngrok-free.app)
+```
+
+**Важно**: Обновите настройки на сервере с новым ngrok URL:
+
+```bash
+# На сервере обновите .env
+WEBAPP_URL=https://abc123.ngrok-free.app
+ALLOWED_ORIGINS=http://localhost:3000,https://abc123.ngrok-free.app
+
+# Перезапустите сервисы
+docker-compose -f docker-compose.server.yml restart backend bot
+```
+
+## ✅ Шаг 3: Проверка развертывания
+
+### 3.1 Тестирование подключений
+
+```bash
+# Проверка backend API с локальной машины
+curl http://YOUR_SERVER_IP:8001/health
+
+# Проверка frontend
+curl http://localhost:3000
+
+# Проверка ngrok URL
+curl https://your-ngrok-url.ngrok-free.app
+```
+
+### 3.2 Тестирование Telegram бота
+
+1. Найдите вашего бота в Telegram
+2. Отправьте команду `/start`
+3. Нажмите кнопку "🏠 Открыть приложение"
+4. Убедитесь, что веб-приложение открывается
+
+### 3.3 Проверка интеграции
+
+1. Зарегистрируйтесь в веб-приложении
+2. Создайте профиль пользователя
+3. Проверьте, что данные сохраняются в базе данных на сервере
+
+## 🔄 Управление сервисами
+
+### Команды для сервера
+
+```bash
+# Перезапуск всех сервисов
+docker-compose -f docker-compose.server.yml restart
+
+# Перезапуск конкретного сервиса
+docker-compose -f docker-compose.server.yml restart backend
+docker-compose -f docker-compose.server.yml restart bot
+
+# Остановка
+docker-compose -f docker-compose.server.yml down
+
+# Полная остановка с удалением данных
+docker-compose -f docker-compose.server.yml down -v
+```
+
+### Команды для локальной машины
+
+```bash
+# Перезапуск frontend
+docker-compose -f docker-compose.local.yml restart
+
+# Остановка
+docker-compose -f docker-compose.local.yml down
+
+# Просмотр логов
+docker-compose -f docker-compose.local.yml logs -f
+```
+
+## 🛠️ Обслуживание и мониторинг
+
+### Проверка здоровья сервисов
+
+```bash
+# Проверка всех health checks
+docker-compose -f docker-compose.server.yml ps
+
+# Детальная проверка
+curl http://YOUR_SERVER_IP:8001/health
+curl http://localhost:3000
+```
+
+### Резервное копирование базы данных
+
+```bash
+# Создание бэкапа
+docker exec social_rent_db pg_dump -U postgres social_rent > backup_$(date +%Y%m%d_%H%M%S).sql
+
+# Восстановление из бэкапа
+docker exec -i social_rent_db psql -U postgres social_rent < backup.sql
+```
+
+### Обновление приложения
+
+```bash
+# На сервере
+git pull origin main
+docker-compose -f docker-compose.server.yml build --no-cache
+docker-compose -f docker-compose.server.yml up -d
+
+# На локальной машине  
+git pull origin main
+docker-compose -f docker-compose.local.yml build --no-cache
+docker-compose -f docker-compose.local.yml up -d
+```
+
+## 🚨 Устранение неполадок
+
+### Проблемы с подключением
+
+1. **Frontend не может подключиться к backend:**
+   - Проверьте настройку `REACT_APP_BACKEND_URL`
+   - Убедитесь, что порт 8001 открыт на сервере
+   - Проверьте firewall настройки
+
+2. **CORS ошибки:**
+   - Обновите `ALLOWED_ORIGINS` на сервере
+   - Перезапустите backend после изменений
+
+3. **Telegram Web App не открывается:**
+   - Убедитесь, что используете HTTPS URL
+   - Проверьте настройку `WEBAPP_URL`
+   - URL не должен содержать localhost
+
+### Проблемы с базой данных
+
+```bash
+# Проверка подключения к БД
+docker exec social_rent_db pg_isready -U postgres
+
+# Проверка логов БД
+docker-compose -f docker-compose.server.yml logs db
+
+# Перезапуск БД
+docker-compose -f docker-compose.server.yml restart db
+```
+
+### Проблемы с Ngrok
+
+1. **Ngrok URL не работает:**
+   - Проверьте, что ngrok все еще активен
+   - Обновите URL в настройках сервера
+   - Используйте платную подписку ngrok для стабильности
+
+2. **Частая смена URL:**
+   - Используйте зарезервированные домены в ngrok
+   - Настройте автоматическое обновление конфигурации
+
+## 🔒 Безопасность в продакшн
+
+1. **Измените пароли по умолчанию:**
+   ```env
+   POSTGRES_PASSWORD=STRONG_SECURE_PASSWORD
+   SECRET_KEY=LONG_RANDOM_SECRET_KEY
+   ```
+
+2. **Ограничьте доступ:**
+   ```env
+   ALLOWED_ORIGINS=https://your-secure-domain.com
+   ```
+
+3. **Настройте SSL/TLS для backend**
+
+4. **Настройте firewall правила**
+
+5. **Регулярные обновления и бэкапы**
+
+Развертывание завершено! Ваше приложение теперь работает на двух машинах с централизованными настройками.
