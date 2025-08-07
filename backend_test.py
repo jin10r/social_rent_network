@@ -544,10 +544,14 @@ class SocialRentAPITester:
     
     def run_comprehensive_tests(self):
         """Run all API tests"""
-        print("🚀 Starting Comprehensive Social Rent API Tests\n")
+        print("🚀 Starting Comprehensive Social Rent API Tests (via Nginx Proxy)\n")
+        
+        # 0. Nginx routing tests
+        print("0️⃣  Testing Nginx Reverse Proxy...")
+        self.test_nginx_routing()
         
         # 1. Health check
-        print("1️⃣  Testing Health Check...")
+        print("\n1️⃣  Testing Health Check...")
         self.test_health_check()
         
         # 2. User management
