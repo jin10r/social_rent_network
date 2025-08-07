@@ -160,8 +160,22 @@ async def create_user(
     db: AsyncSession = Depends(get_database)
 ):
     """Create or update user profile"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    logger.info(f"Creating/updating user with telegram_id: {current_user.get('id')}")
+    logger.info(f"User data: {user_data.dict(exclude_unset=True)}")
+    
     user_service = UserService(db)
-    user = await user_service.create_or_update_user(current_user['id'], user_data)
+    telegram_id = current_user.get('id')
+    if not telegram_id:
+        logger.error("No telegram_id in current_user")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No telegram_id provided"
+        )
+    
+    user = await user_service.create_or_update_user(telegram_id, user_data)
     return user
 
 @app.get("/api/users/me", response_model=UserResponse)
@@ -184,6 +198,7 @@ async def update_user_profile(
     
     logger.info(f"Received request to update profile for user {current_user.id}")
     logger.info(f"User data: {user_data.dict(exclude_unset=True)}")
+    logger.info(f"Current user telegram_id: {current_user.telegram_id}")
     
     try:
         user_service = UserService(db)
@@ -192,6 +207,8 @@ async def update_user_profile(
         return user
     except Exception as e:
         logger.error(f"Error updating profile for user {current_user.id}: {str(e)}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
         raise
 
 @app.get("/api/users/potential-matches", response_model=list[UserProfileResponse])

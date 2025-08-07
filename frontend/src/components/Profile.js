@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Camera, MapPin, DollarSign, Calendar, Edit3, Search } from 'lucide-react';
 import { useUser } from '../context/UserContext';
-import { userAPI, metroAPI } from '../services/api';
+import { userAPI, metroAPI, listingAPI } from '../services/api';
 import { useTelegram } from '../hooks/useTelegram';
 
 const Profile = () => {
@@ -25,7 +25,7 @@ const Profile = () => {
     search_radius: '1000'
   });
 
-  const loadProfile = useCallback(async () => {
+  const loadProfile = async () => {
     console.log('Loading profile...');
     try {
       const response = await userAPI.getCurrentUser();
@@ -57,22 +57,22 @@ const Profile = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentUser]);
+  };
 
-  const loadMetroStations = useCallback(async () => {
+  const loadMetroStations = async () => {
     try {
-      const response = await listingsAPI.getMetroStations();
+      const response = await metroAPI.getStations();
       setMetroStations(response.data || []);
     } catch (error) {
       console.error('Error loading metro stations:', error);
     }
-  }, []);
+  };
 
   useEffect(() => {
     console.log('Profile component mounted, calling loadProfile and loadMetroStations');
     loadProfile();
     loadMetroStations();
-  }, [loadProfile, loadMetroStations]);
+  }, []);
 
   useEffect(() => {
     if (currentUser) {
@@ -88,16 +88,14 @@ const Profile = () => {
   useEffect(() => {
     // Filter metro stations based on query
     if (metroQuery.trim() === '') {
-      setFilteredStations(metroStations.slice(0, 10));
+      setFilteredStations(metroStations.map(name => ({ name })).slice(0, 10));
     } else {
-      const filtered = metroStations.filter(station =>
-        station.name.toLowerCase().includes(metroQuery.toLowerCase())
+      const filtered = metroStations.filter(stationName =>
+        stationName.toLowerCase().includes(metroQuery.toLowerCase())
       ).slice(0, 10);
-      setFilteredStations(filtered);
+      setFilteredStations(filtered.map(name => ({ name })));
     }
   }, [metroQuery, metroStations]);
-
-
 
   const handleSave = async () => {
     console.log('handleSave called');
@@ -135,7 +133,7 @@ const Profile = () => {
       };
       
       console.log('Sending user data:', userData);
-      const response = await userAPI.createUser(userData);
+      const response = await userAPI.updateUser(userData);
       setCurrentUser(response.data);
       setEditing(false);
       setShowMetroSuggestions(false);
@@ -161,8 +159,9 @@ const Profile = () => {
   };
 
   const handleMetroStationSelect = (station) => {
-    setProfile(prev => ({ ...prev, metro_station: station.name }));
-    setMetroQuery(station.name);
+    const stationName = typeof station === 'string' ? station : station.name;
+    setProfile(prev => ({ ...prev, metro_station: stationName }));
+    setMetroQuery(stationName);
     setShowMetroSuggestions(false);
   };
 
@@ -409,13 +408,17 @@ const Profile = () => {
                           padding: '12px 16px',
                           cursor: 'pointer',
                           borderBottom: index < filteredStations.length - 1 ? '1px solid var(--tg-theme-hint-color, #eee)' : 'none',
-                          ':hover': {
-                            backgroundColor: 'var(--tg-theme-section-bg-color, #f5f5f5)'
-                          }
+                          backgroundColor: 'transparent'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.backgroundColor = 'var(--tg-theme-section-bg-color, #f5f5f5)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.backgroundColor = 'transparent';
                         }}
                         onClick={() => handleMetroStationSelect(station)}
                       >
-                        <div style={{ fontWeight: '500' }}>{station.name}</div>
+                        <div style={{ fontWeight: '500' }}>{station.name || station}</div>
                         {station.line && (
                           <div style={{ fontSize: '12px', color: 'var(--tg-theme-hint-color, #999)', marginTop: '2px' }}>
                             {station.line} линия

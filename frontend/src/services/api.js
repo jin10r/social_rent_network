@@ -24,9 +24,11 @@ const getMockToken = () => {
 // Get auth token from Telegram or use mock
 const getAuthToken = () => {
   if (window.Telegram?.WebApp?.initData) {
-    return window.Telegram.WebApp.initData;
+    // Используем initData напрямую как Bearer token
+    return `Bearer ${window.Telegram.WebApp.initData}`;
   }
-  return getMockToken();
+  // Для разработки используем Bearer token с JSON данными
+  return `Bearer ${getMockToken()}`;
 };
 
 // Add auth header to requests
@@ -34,7 +36,6 @@ api.interceptors.request.use(
   (config) => {
     const token = getAuthToken();
     if (token) {
-      // For Telegram Web Apps, send initData directly without Bearer prefix
       config.headers.Authorization = token;
     }
     return config;
@@ -75,7 +76,7 @@ export const userAPI = {
   getCurrentUser: () => api.get('/api/users/me'),
   
   // Update user profile
-  updateUser: (userData) => api.put('/api/users/me', userData),
+  updateUser: (userData) => api.put('/api/users/profile', userData),
   
   // Get potential matches
   getPotentialMatches: (limit = 10) => 

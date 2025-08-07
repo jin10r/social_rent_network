@@ -23,6 +23,9 @@ async def verify_telegram_auth(
     try:
         auth_data = credentials.credentials
         
+        # Логируем полученные данные для отладки
+        print(f"Received auth data: {auth_data[:100]}...")
+        
         # For now, we'll implement a simplified version
         # In production, you should properly verify the hash
         # according to Telegram Web Apps documentation
@@ -34,10 +37,12 @@ async def verify_telegram_auth(
                 import base64
                 decoded_data = base64.b64decode(auth_data).decode('utf-8')
                 user_data = json.loads(decoded_data)
+                print(f"Decoded user data: {user_data}")
                 return user_data
             except:
                 # If not base64, try direct JSON
                 user_data = json.loads(auth_data)
+                print(f"Direct JSON user data: {user_data}")
                 return user_data
         except json.JSONDecodeError:
             # Try parsing as query string
@@ -45,9 +50,11 @@ async def verify_telegram_auth(
             user_data = {}
             for key, value in parsed.items():
                 user_data[key] = value[0] if value else None
+            print(f"Query string user data: {user_data}")
             return user_data
     
     except Exception as e:
+        print(f"Auth verification error: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication data"

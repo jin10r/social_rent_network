@@ -74,6 +74,8 @@ class UserService:
             logger.error(f"User with id {user_id} not found")
             raise ValueError("User not found")
         
+        logger.info(f"Found user: {user.telegram_id}, {user.first_name}")
+        
         # Update fields
         for field, value in user_data.dict(exclude_unset=True, exclude={'lat', 'lon'}).items():
             logger.info(f"Setting {field} to {value}")
@@ -86,10 +88,14 @@ class UserService:
             if station_info:
                 location_text = f'POINT({station_info["lon"]} {station_info["lat"]})'
                 user.search_location = func.ST_GeogFromText(location_text)
+                logger.info(f"Set location to: {location_text}")
+            else:
+                logger.warning(f"Metro station not found: {user_data.metro_station}")
         elif user_data.lat is not None and user_data.lon is not None:
             logger.info(f"Updating location based on lat/lon: {user_data.lat}, {user_data.lon}")
             location_text = f'POINT({user_data.lon} {user_data.lat})'
             user.search_location = func.ST_GeogFromText(location_text)
+            logger.info(f"Set location to: {location_text}")
         
         user.updated_at = datetime.utcnow()
         
@@ -101,6 +107,7 @@ class UserService:
             logger.info("User updated successfully")
         except Exception as e:
             logger.error(f"Error updating user: {str(e)}")
+            await self.db.rollback()
             raise
         
         return user
