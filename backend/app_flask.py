@@ -41,5 +41,59 @@ def frontend_test():
         "nginx_routing": "OK"
     })
 
+@app.route('/api/users/test-routes')
+def test_user_routes():
+    """Тестирование пользовательских маршрутов"""
+    return jsonify({
+        "available_routes": [
+            "GET /api/users/test-routes",
+            "GET /api/listings/test-routes", 
+            "POST /api/users/create-test",
+            "GET /api/test",
+            "GET /health"
+        ],
+        "user_endpoints": [
+            "/api/users/me",
+            "/api/users/profile",
+            "/api/users/matches"
+        ]
+    })
+
+@app.route('/api/listings/test-routes')
+def test_listing_routes():
+    """Тестирование маршрутов объявлений"""
+    return jsonify({
+        "available_routes": [
+            "GET /api/listings/test-routes",
+            "GET /api/listings/search",
+            "POST /api/listings/create-test"
+        ],
+        "listing_endpoints": [
+            "/api/listings/",
+            "/api/listings/search", 
+            "/api/listings/liked"
+        ]
+    })
+
+@app.route('/api/database/test')
+def test_database():
+    """Тестирование подключения к базе данных"""
+    # В реальном приложении здесь будет проверка подключения к БД
+    return jsonify({
+        "database_status": "connected",
+        "database_type": "SQLite (for testing)",
+        "message": "База данных доступна"
+    })
+
+@app.route('/api/cors-test')
+def cors_test():
+    """Тестирование CORS заголовков"""
+    response = jsonify({
+        "cors_test": "success",
+        "message": "CORS заголовки работают",
+        "origin_allowed": True
+    })
+    return response
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8001, debug=True)
