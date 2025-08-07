@@ -234,6 +234,16 @@ const Profile = () => {
     return (
       <div className="tg-container flex items-center justify-center" style={{ height: '100vh' }}>
         <div className="loading-spinner"></div>
+        <div style={{ marginTop: '20px', textAlign: 'center' }}>
+          <div>Загрузка профиля...</div>
+          {authStatus && (
+            <div style={{ fontSize: '12px', color: 'var(--tg-theme-hint-color)', marginTop: '10px' }}>
+              <div>WebApp: {authStatus.isAvailable ? '✅' : '❌'}</div>
+              <div>InitData: {authStatus.hasInitData ? '✅' : '❌'}</div>
+              <div>User: {authStatus.hasUser ? '✅' : '❌'}</div>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
