@@ -2,7 +2,7 @@
 Упрощенные модели для тестирования без PostGIS
 """
 from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, CheckConstraint, ARRAY, DECIMAL, BigInteger, Float
-from sqlalchemy.dialects.postgresql import UUID
+# UUID не поддерживается в SQLite, используем String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
