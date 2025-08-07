@@ -48,12 +48,7 @@ app = FastAPI(
 # Configure CORS for ngrok
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://a231167a7f99.ngrok-free.app",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "*"  # Для тестирования
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
