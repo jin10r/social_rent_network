@@ -133,64 +133,87 @@ const Profile = () => {
   }, [metroQuery, metroStations]);
 
   const handleSave = async () => {
-    console.log('handleSave called');
-    console.log('Profile data:', profile);
+    console.log('=== Starting Profile Save ===');
+    
+    // Валидация
     if (!profile.first_name.trim()) {
-      console.log('First name is empty');
       showAlert('Пожалуйста, введите имя');
       return;
     }
 
     if (!profile.age) {
-      console.log('Age is empty');
-      showAlert('Пожалуйста, заполните обязательные поля (имя и возраст)');
+      showAlert('Пожалуйста, укажите возраст');
       return;
     }
 
     if (!profile.metro_station) {
-      console.log('Metro station is empty');
       showAlert('Пожалуйста, выберите станцию метро');
       return;
     }
 
-    console.log('Calling saveProfile...');
     setSaving(true);
     hapticFeedback('impact', 'light');
 
     try {
+      console.log('Saving profile with data:', profile);
+      console.log('Auth status:', authStatus);
+      
       const userData = {
-        ...profile,
-        telegram_id: currentUser?.telegram_id,
+        first_name: profile.first_name.trim(),
+        last_name: profile.last_name?.trim() || '',
         age: parseInt(profile.age),
+        bio: profile.bio?.trim() || '',
         price_min: profile.price_min ? parseInt(profile.price_min) : null,
         price_max: profile.price_max ? parseInt(profile.price_max) : null,
+        metro_station: profile.metro_station.trim(),
         search_radius: parseInt(profile.search_radius)
       };
       
-      console.log('Sending user data:', userData);
-      const response = await userAPI.updateUser(userData);
+      console.log('Processed user data:', userData);
+      
+      // Используем новый безопасный API
+      const response = await userAPI.updateProfile(userData);
+      
+      console.log('Profile saved successfully:', response.data);
+      
+      // Обновляем состояние
       setCurrentUser(response.data);
       setEditing(false);
       setShowMetroSuggestions(false);
-      showAlert('Профиль сохранен!');
+      
+      // Уведомления
+      showAlert('✅ Профиль успешно сохранен!');
       hapticFeedback('notification', 'success');
+      
+      // Уведомляем Telegram о обновлении профиля
+      if (window.Telegram?.WebApp?.sendData) {
+        window.Telegram.WebApp.sendData(JSON.stringify({
+          type: 'profile_updated',
+          user: response.data
+        }));
+      }
+      
     } catch (error) {
-      console.error('Error saving profile:', error);
-      console.error('Error details:', {
-        message: error.message,
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        config: {
-          url: error.config?.url,
-          method: error.config?.method,
-          data: error.config?.data
-        }
-      });
-      showAlert('Ошибка при сохранении профиля');
+      console.error('=== Profile Save Error ===');
+      console.error('Error:', error);
+      console.error('Response:', error.response?.data);
+      console.error('Status:', error.response?.status);
+      
+      let errorMessage = 'Ошибка при сохранении профиля';
+      
+      if (error.response?.status === 401) {
+        errorMessage = 'Ошибка аутентификации. Пожалуйста, перезапустите приложение';
+      } else if (error.response?.status === 400) {
+        errorMessage = `Неверные данные: ${error.response.data.detail || ''}`;
+      } else if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      }
+      
+      showAlert(errorMessage);
       hapticFeedback('notification', 'error');
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const handleMetroStationSelect = (station) => {
