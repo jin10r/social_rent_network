@@ -369,6 +369,9 @@ async def main():
     # Определяем DATABASE_URL в зависимости от среды выполнения
     import os
     DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres123@localhost:5432/social_rent")
+    # asyncpg URL не подходит для asyncpg.connect(), используем стандартный postgresql://
+    if DATABASE_URL.startswith("postgresql+asyncpg://"):
+        DATABASE_URL = DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
     
     print("🚀 Запуск генерации тестовых данных для Social Rent App")
     print("=" * 50)
