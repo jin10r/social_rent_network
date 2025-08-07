@@ -82,9 +82,7 @@ async def verify_telegram_auth(
         )
 
 def verify_telegram_hash(auth_data: Dict, bot_token: str) -> bool:
-    """Verify Telegram authentication hash"""
-    # Implementation of Telegram's hash verification
-    # This is a simplified version - implement according to Telegram docs
+    """Verify Telegram authentication hash according to official documentation"""
     try:
         received_hash = auth_data.get('hash')
         if not received_hash:
@@ -99,15 +97,16 @@ def verify_telegram_hash(auth_data: Dict, bot_token: str) -> bool:
         data_check_arr.sort()
         data_check_string = '\n'.join(data_check_arr)
         
-        # Create secret key
-        secret_key = hmac.new(bot_token.encode(), b"WebAppData", hashlib.sha256).digest()
+        # Create secret key according to Telegram docs
+        secret_key = hashlib.sha256(bot_token.encode()).digest()
         
         # Calculate hash
         calculated_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
         
         return hmac.compare_digest(received_hash, calculated_hash)
     
-    except Exception:
+    except Exception as e:
+        print(f"Hash verification error: {e}")
         return False
 
 async def get_current_user(
