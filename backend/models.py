@@ -1,9 +1,7 @@
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, CheckConstraint, ARRAY, DECIMAL, BigInteger
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, CheckConstraint, DECIMAL, BigInteger, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from geoalchemy2 import Geography
 import uuid
 
 Base = declarative_base()
@@ -11,7 +9,7 @@ Base = declarative_base()
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     telegram_id = Column(BigInteger, unique=True, nullable=False, index=True)
     username = Column(String(255), nullable=True)
     first_name = Column(String(255), nullable=True)
@@ -22,7 +20,8 @@ class User(Base):
     price_min = Column(Integer, CheckConstraint('price_min >= 0'), nullable=True)
     price_max = Column(Integer, CheckConstraint('price_max >= price_min'), nullable=True)
     metro_station = Column(String(255), nullable=True)
-    search_location = Column(Geography('POINT', srid=4326), nullable=True)
+    search_latitude = Column(Float, nullable=True)
+    search_longitude = Column(Float, nullable=True)  
     search_radius = Column(Integer, CheckConstraint('search_radius > 0'), nullable=True)  # in meters
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -37,19 +36,20 @@ class User(Base):
 class Listing(Base):
     __tablename__ = "listings"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     price = Column(Integer, CheckConstraint('price >= 0'), nullable=False)
     address = Column(String(500), nullable=True)
-    location = Column(Geography('POINT', srid=4326), nullable=False, index=True)
+    latitude = Column(Float, nullable=False)
+    longitude = Column(Float, nullable=False)
     rooms = Column(Integer, CheckConstraint('rooms > 0'), nullable=True)
     area = Column(DECIMAL(7, 2), CheckConstraint('area > 0'), nullable=True)
     floor = Column(Integer, nullable=True)
     total_floors = Column(Integer, nullable=True)
     metro_station = Column(String(255), nullable=True)
     metro_distance = Column(Integer, nullable=True)  # in meters
-    photos = Column(ARRAY(Text), nullable=True)
+    photos = Column(Text, nullable=True)  # JSON string for SQLite
     is_active = Column(Boolean, default=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -61,9 +61,9 @@ class Listing(Base):
 class UserLike(Base):
     __tablename__ = "user_likes"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    liker_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    liked_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    liker_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    liked_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
@@ -78,9 +78,9 @@ class UserLike(Base):
 class UserMatch(Base):
     __tablename__ = "user_matches"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user1_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    user2_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user1_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user2_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
@@ -95,9 +95,9 @@ class UserMatch(Base):
 class ListingLike(Base):
     __tablename__ = "listing_likes"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    listing_id = Column(UUID(as_uuid=True), ForeignKey("listings.id", ondelete="CASCADE"), nullable=False, index=True)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    listing_id = Column(String(36), ForeignKey("listings.id", ondelete="CASCADE"), nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
