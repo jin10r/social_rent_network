@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, MapPin, DollarSign, Calendar, Edit3, Search } from 'lucide-react';
+import { Camera, MapPin, DollarSign, Calendar, Edit3, Search, CheckCircle, AlertCircle } from 'lucide-react';
 import { useUser } from '../context/UserContext';
-import { userAPI, metroAPI, listingAPI } from '../services/api';
+import { userAPI, metroAPI, checkTelegramWebApp } from '../services/api_new';
 import { useTelegram } from '../hooks/useTelegram';
 
 const Profile = () => {
