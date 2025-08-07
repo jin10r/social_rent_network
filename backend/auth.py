@@ -26,11 +26,32 @@ async def verify_telegram_auth(
         # Логируем полученные данные для отладки
         print(f"Received auth data: {auth_data[:100]}...")
         
-        # For now, we'll implement a simplified version
-        # In production, you should properly verify the hash
-        # according to Telegram Web Apps documentation
+        # Try parsing as Telegram initData (query string format)
+        try:
+            # Parse query string format (standard Telegram Web Apps format)
+            parsed = parse_qs(auth_data)
+            if parsed:
+                user_data = {}
+                for key, value in parsed.items():
+                    user_data[key] = value[0] if value else None
+                
+                # Extract user info if it's in 'user' parameter
+                if 'user' in user_data:
+                    user_info = json.loads(user_data['user'])
+                    print(f"Parsed Telegram user data: {user_info}")
+                    
+                    # Verify hash for production (commented for now)
+                    # if not verify_telegram_hash(parsed, BOT_TOKEN):
+                    #     raise HTTPException(status_code=401, detail="Invalid hash")
+                    
+                    return user_info
+                else:
+                    print(f"Query string user data: {user_data}")
+                    return user_data
+        except Exception as e:
+            print(f"Failed to parse as query string: {e}")
         
-        # Parse JSON data (simplified for demo)
+        # Fallback: Try to parse as direct JSON (for development/testing)
         try:
             # Try to decode base64 first if it looks like base64
             try:
@@ -44,14 +65,14 @@ async def verify_telegram_auth(
                 user_data = json.loads(auth_data)
                 print(f"Direct JSON user data: {user_data}")
                 return user_data
-        except json.JSONDecodeError:
-            # Try parsing as query string
-            parsed = parse_qs(auth_data)
-            user_data = {}
-            for key, value in parsed.items():
-                user_data[key] = value[0] if value else None
-            print(f"Query string user data: {user_data}")
-            return user_data
+        except json.JSONDecodeError as e:
+            print(f"Failed to parse as JSON: {e}")
+        
+        # If all parsing fails, raise error
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not parse authentication data"
+        )
     
     except Exception as e:
         print(f"Auth verification error: {e}")
