@@ -44,12 +44,18 @@ const Profile = () => {
   }, []);
 
   const loadProfile = async () => {
-    console.log('Loading profile...');
+    console.log('=== Loading Profile ===');
     try {
+      setLoading(true);
+      
+      // Проверяем статус аутентификации
+      const webAppStatus = checkTelegramWebApp();
+      console.log('WebApp Status:', webAppStatus);
+      
       const response = await userAPI.getCurrentUser();
-      console.log('Profile response:', response);
+      console.log('Profile loaded successfully:', response.data);
+      
       const userData = response.data;
-      console.log('User data:', userData);
       setProfile({
         first_name: userData.first_name || '',
         last_name: userData.last_name || '',
@@ -62,15 +68,26 @@ const Profile = () => {
         photo_url: userData.photo_url
       });
       setMetroQuery(userData.metro_station || '');
+      
+      // Обновляем контекст пользователя
+      setCurrentUser(userData);
+      
     } catch (error) {
-      console.log('Profile not found, will create new one', error);
-      if (currentUser) {
-        setProfile(prev => ({
-          ...prev,
-          first_name: currentUser.first_name || '',
-          last_name: currentUser.last_name || '',
-          photo_url: currentUser.photo_url
-        }));
+      console.error('Failed to load profile:', error);
+      
+      if (error.response?.status === 404) {
+        console.log('User profile not found, will create new one');
+        // Используем данные из Telegram WebApp если доступны
+        if (authStatus?.user) {
+          setProfile(prev => ({
+            ...prev,
+            first_name: authStatus.user.first_name || '',
+            last_name: authStatus.user.last_name || '',
+            photo_url: authStatus.user.photo_url
+          }));
+        }
+      } else {
+        showAlert(`Ошибка загрузки профиля: ${error.response?.data?.detail || error.message}`);
       }
     } finally {
       setLoading(false);
