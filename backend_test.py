@@ -83,14 +83,39 @@ class SocialRentAPITester:
         })
     
     def test_health_check(self):
-        """Test GET /health endpoint"""
+        """Test GET /health endpoint through nginx"""
         try:
-            response = self.session.get(f"{BACKEND_URL}/health")
+            response = self.session.get(f"{NGINX_URL}/health")
             success = response.status_code == 200 and response.json().get("status") == "healthy"
-            self.log_test("Health Check", success, f"Status: {response.status_code}")
+            self.log_test("Health Check (via nginx)", success, f"Status: {response.status_code}")
             return success
         except Exception as e:
-            self.log_test("Health Check", False, str(e))
+            self.log_test("Health Check (via nginx)", False, str(e))
+            return False
+    
+    def test_nginx_routing(self):
+        """Test nginx routing configuration"""
+        try:
+            print("\n🔀 Testing Nginx Routing...")
+            
+            # Test /docs endpoint (should route to backend)
+            response = self.session.get(f"{NGINX_URL}/docs")
+            docs_success = response.status_code == 200
+            self.log_test("Nginx /docs routing", docs_success, f"Status: {response.status_code}")
+            
+            # Test /openapi.json endpoint (should route to backend)
+            response = self.session.get(f"{NGINX_URL}/openapi.json")
+            openapi_success = response.status_code == 200
+            self.log_test("Nginx /openapi.json routing", openapi_success, f"Status: {response.status_code}")
+            
+            # Test root endpoint (should route to frontend)
+            response = self.session.get(f"{NGINX_URL}/")
+            root_success = response.status_code == 200
+            self.log_test("Nginx root routing", root_success, f"Status: {response.status_code}")
+            
+            return docs_success and openapi_success and root_success
+        except Exception as e:
+            self.log_test("Nginx Routing", False, str(e))
             return False
     
     def test_create_user(self, user_data: Dict):
