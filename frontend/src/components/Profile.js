@@ -10,6 +10,7 @@ const Profile = () => {
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [authStatus, setAuthStatus] = useState(null);
   const [metroStations, setMetroStations] = useState([]);
   const [metroQuery, setMetroQuery] = useState('');
   const [showMetroSuggestions, setShowMetroSuggestions] = useState(false);
@@ -24,6 +25,23 @@ const Profile = () => {
     metro_station: '',
     search_radius: '1000'
   });
+
+  // Проверка статуса Telegram WebApp
+  useEffect(() => {
+    const checkAuth = () => {
+      const status = checkTelegramWebApp();
+      setAuthStatus(status);
+      console.log('Telegram WebApp Status:', status);
+    };
+
+    checkAuth();
+    
+    // Периодически проверяем статус
+    const interval = setInterval(checkAuth, 1000);
+    setTimeout(() => clearInterval(interval), 5000); // Останавливаем через 5 секунд
+    
+    return () => clearInterval(interval);
+  }, []);
 
   const loadProfile = async () => {
     console.log('Loading profile...');
