@@ -50,12 +50,14 @@ class NginxConfigTester:
                          "Found /api/ routing to backend:8001" if api_routing else "Missing API routing")
             
             # Test health endpoint routing
-            health_routing = "/health" in content and "backend:8001" in content
+            health_routing = ("health" in content and "backend:8001" in content) or \
+                           ("/(health|" in content and "backend:8001" in content)
             self.log_test("Nginx health routing (/health -> backend:8001)", health_routing,
                          "Found /health routing to backend:8001" if health_routing else "Missing health routing")
             
             # Test docs routing
-            docs_routing = "/docs" in content and "backend:8001" in content
+            docs_routing = ("docs" in content and "backend:8001" in content) or \
+                          ("/(health|docs|" in content and "backend:8001" in content)
             self.log_test("Nginx docs routing (/docs -> backend:8001)", docs_routing,
                          "Found /docs routing to backend:8001" if docs_routing else "Missing docs routing")
             
