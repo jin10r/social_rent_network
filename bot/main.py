@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Bot configuration
-BOT_TOKEN = os.getenv("BOT_TOKEN", "8482163056:AAFO_l3IuliKB6I81JyQ-3_VrZuQ-8S5P-k")
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8482163056:AAGYMcCmHUxvrzDXkBESZPGV_kGiUVHZh4I")
 WEBAPP_URL = os.getenv("WEBAPP_URL", "https://64023b94ce51.ngrok-free.app")
 
 # Initialize bot and dispatcher
