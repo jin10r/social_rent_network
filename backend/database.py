@@ -7,8 +7,8 @@ import asyncio
 from typing import AsyncGenerator
 import logging
 
-# Database configuration using SQLite for development
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./social_rent.db")
+# Database configuration using PostgreSQL + PostGIS
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres@localhost:5432/social_rent")
 
 # Create async engine
 engine = create_async_engine(
