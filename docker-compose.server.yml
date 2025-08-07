@@ -92,11 +92,11 @@ services:
       
     # Health check для backend
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:${BACKEND_PORT}/health || exit 1"]
+      test: ["CMD-SHELL", "python -c \"import requests; requests.get('http://localhost:${BACKEND_PORT}/health', timeout=5)\" || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
 
   # ==============================================================================
   # TELEGRAM BOT
