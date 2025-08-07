@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+// Use relative URL since frontend and backend are served from the same domain/port
+const API_BASE_URL = '';
 
 // Create axios instance
 const api = axios.create({
