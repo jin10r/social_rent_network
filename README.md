@@ -1,175 +1,146 @@
-# Social Rent App
+# 🏠 Social Rent - Unified App
 
 Социальная сеть для поиска жилья и соседей через Telegram Web App.
-
-## 🏗️ Архитектура приложения
-
-- `backend/` - Backend приложения (FastAPI + PostgreSQL)
-- `frontend/` - Frontend приложения (React)  
-- `bot/` - Telegram бот (aiogram)
-- `scripts/` - Служебные скрипты
-
-## ✅ Что готово
-
-- ✅ **Централизованная конфигурация** - все настройки в файле `.env`
-- ✅ **2 Docker Compose файла**:
-  - `docker-compose.server.yml` - сервер (bot + backend + database)
-  - `docker-compose.local.yml` - локальная машина (frontend)
-- ✅ **Удалены лишние файлы** - оставлены только необходимые
-- ✅ **Готов к деплою** - можно сразу использовать на двух машинах
+**Все сервисы объединены в один порт для простоты использования с ngrok.**
 
 ## 🚀 Быстрый запуск
 
 ### 1. Настройка конфигурации
 
-Отредактируйте файл `.env` - укажите ваши настройки:
-
-```env
-# Основные настройки для изменения:
-BOT_TOKEN=YOUR_TELEGRAM_BOT_TOKEN_HERE
-SERVER_IP=YOUR_SERVER_IP_HERE  
-WEBAPP_URL=YOUR_NGROK_FRONTEND_URL_HERE
-BACKEND_URL=http://YOUR_SERVER_IP_HERE:8001
-ALLOWED_ORIGINS=http://localhost:3000,YOUR_NGROK_FRONTEND_URL_HERE
-```
-
-### 2. Запуск на удаленном сервере (bot + backend + база данных)
+Отредактируйте файл `.env`:
 
 ```bash
-# На удаленном сервере
-docker-compose -f docker-compose.server.yml --env-file .env up -d
+# Обязательно измените эти настройки:
+BOT_TOKEN=8482163056:AAFO_l3IuliKB6I81JyQ-3_VrZuQ-8S5P-k
+WEBAPP_URL=https://your-ngrok-url.ngrok-free.app  
+ALLOWED_ORIGINS=https://your-ngrok-url.ngrok-free.app
+POSTGRES_PASSWORD=your_secure_password_here
+SECRET_KEY=your_super_secret_key_change_in_production
+```
 
-# Просмотр логов всех сервисов
-docker-compose -f docker-compose.server.yml logs -f
+### 2. Запуск приложения
+
+```bash
+# Сборка и запуск всех сервисов
+docker-compose up --build -d
+
+# Проверка статуса
+docker-compose ps
+
+# Просмотр логов
+docker-compose logs -f
+```
+
+### 3. Настройка ngrok
+
+```bash
+# В отдельном терминале
+ngrok http 8001
+```
+
+Скопируйте HTTPS URL из ngrok и обновите в `.env`:
+- `WEBAPP_URL=https://abc123.ngrok-free.app`
+- `ALLOWED_ORIGINS=https://abc123.ngrok-free.app`
+
+Затем перезапустите:
+```bash
+docker-compose restart
+```
+
+## 📋 Структура приложения
+
+```
+/app/
+├── backend/         # FastAPI backend
+├── frontend/        # React frontend  
+├── bot/            # Telegram bot
+├── static/         # Собранные файлы React (создается при сборке)
+├── docker-compose.yml    # Единая конфигурация
+├── Dockerfile.app       # Dockerfile для unified app
+└── .env                 # Конфигурация
+```
+
+## 🌐 Порты и доступ
+
+- **Единый порт**: 8001 (frontend + backend + API)
+- **База данных**: 5432
+- **Доступ к приложению**: http://localhost:8001
+- **API health check**: http://localhost:8001/health
+- **API endpoints**: http://localhost:8001/api/*
+
+## 🔧 Основные команды
+
+```bash
+# Запуск
+docker-compose up -d
+
+# Пересборка
+docker-compose up --build -d
 
 # Остановка
-docker-compose -f docker-compose.server.yml down
-```
+docker-compose down
 
-### 3. Запуск локального frontend
+# Логи всех сервисов
+docker-compose logs -f
 
-```bash
-# На локальной машине
-docker-compose -f docker-compose.local.yml --env-file .env up -d
+# Логи конкретного сервиса
+docker-compose logs -f app
+docker-compose logs -f bot
+docker-compose logs -f db
 
-# Просмотр логов frontend
-docker-compose -f docker-compose.local.yml logs -f
-
-# Остановка
-docker-compose -f docker-compose.local.yml down
-```
-
-## 🌐 Настройка Ngrok
-
-Для работы Telegram Web App требуется публичный HTTPS URL:
-
-1. Установите ngrok: https://ngrok.com/download
-2. Запустите ngrok для frontend:
-   ```bash
-   ngrok http 3000
-   ```
-3. Скопируйте HTTPS URL (например: `https://abc123.ngrok-free.app`)
-4. Обновите в `.env`:
-   ```env
-   WEBAPP_URL=https://abc123.ngrok-free.app
-   ALLOWED_ORIGINS=http://localhost:3000,https://abc123.ngrok-free.app
-   ```
-5. Перезапустите сервисы:
-   ```bash
-   # На сервере
-   docker-compose -f docker-compose.server.yml restart
-   ```
-
-## 🔧 Полезные команды
-
-### Мониторинг сервисов
-
-```bash
-# Статус сервисов на сервере
-docker-compose -f docker-compose.server.yml ps
-
-# Статус локального frontend
-docker-compose -f docker-compose.local.yml ps
-
-# Health check
-curl http://YOUR_SERVER_IP:8001/health  # backend
-curl http://localhost:3000              # frontend
-```
-
-### Работа с базой данных
-
-```bash
 # Подключение к базе данных
-docker exec -it social_rent_db psql -U postgres -d social_rent
+docker-compose exec db psql -U postgres -d social_rent
 
-# Генерация тестовых данных вручную
-docker-compose -f docker-compose.server.yml exec backend python /app/generate_test_data.py
-```
-
-### Очистка системы
-
-```bash
-# Полная остановка и очистка
-docker-compose -f docker-compose.server.yml down -v
-docker-compose -f docker-compose.local.yml down -v
-
-# Очистка образов
+# Полная очистка
+docker-compose down -v
 docker system prune -a
 ```
 
-## 📊 Основные переменные окружения
+## ✅ Что изменилось
 
-| Переменная | Описание | Пример |
-|------------|----------|---------|
-| `BOT_TOKEN` | Токен Telegram бота от @BotFather | `123456789:ABC...` |
-| `SERVER_IP` | IP адрес удаленного сервера | `185.36.141.151` |
-| `WEBAPP_URL` | HTTPS URL для Telegram Web App | `https://abc.ngrok-free.app` |
-| `BACKEND_URL` | URL backend API | `http://185.36.141.151:8001` |
-| `ALLOWED_ORIGINS` | Разрешенные CORS источники | `http://localhost:3000,https://...` |
+- ✅ **Объединены frontend и backend** в один порт 8001
+- ✅ **FastAPI теперь обслуживает статические файлы** React
+- ✅ **Удалены все лишние скрипты и конфигурации**
+- ✅ **Один docker-compose файл** вместо нескольких
+- ✅ **Упрощенная настройка ngrok** - только один туннель
+- ✅ **Нет проблем с CORS** - все на одном домене
 
-## 🛠️ Сценарии развертывания
+## 🛠️ Решение проблем
 
-### Вариант 1: Полная локальная разработка
+### Ошибки при сборке frontend
 ```bash
-# Запустить все сервисы локально (для тестирования)
-docker-compose -f docker-compose.server.yml up -d
-docker-compose -f docker-compose.local.yml up -d
+# Пересборка с очисткой кеша
+docker-compose down
+docker-compose build --no-cache app
+docker-compose up -d
 ```
 
-### Вариант 2: Продакшн (рекомендуется)
+### Проблемы с базой данных
 ```bash
-# На удаленном сервере
-docker-compose -f docker-compose.server.yml up -d
-
-# На локальной машине
-docker-compose -f docker-compose.local.yml up -d
+# Проверка подключения к БД
+docker-compose exec app python -c "
+from backend.database import init_database
+import asyncio
+asyncio.run(init_database())
+"
 ```
 
-## 🚨 Решение проблем
+### Telegram Web App не работает
+1. Убедитесь что `WEBAPP_URL` использует HTTPS
+2. URL должен быть доступен извне (ngrok)
+3. Перезапустите бота после изменения настроек
 
-### Ошибки Telegram Web App
-- Убедитесь, что `WEBAPP_URL` использует HTTPS
-- URL не должен содержать localhost
-- Перезапустите бот после изменения `WEBAPP_URL`
+## 📊 Тестирование
 
-### CORS ошибки  
-- Добавьте все необходимые URL в `ALLOWED_ORIGINS`
-- Перезапустите backend после изменения настроек
+```bash
+# API health check
+curl http://localhost:8001/health
 
-### Проблемы с портами
-- Проверьте доступность портов: `lsof -i :8001`, `lsof -i :3000`
-- Измените порты в `.env` при необходимости
+# Проверка frontend
+curl http://localhost:8001
 
-### Ошибки подключения к БД
-- Проверьте логи: `docker-compose -f docker-compose.server.yml logs db`
-- Убедитесь, что база данных запущена и готова к подключениям
+# Проверка API endpoint
+curl http://localhost:8001/api/metro/stations
+```
 
-## 🔒 Безопасность
-
-Для production обязательно измените:
-- `SECRET_KEY` - на надежный секретный ключ
-- `POSTGRES_PASSWORD` - на сильный пароль
-- `ALLOWED_ORIGINS` - ограничьте конкретными доменами
-- `ENVIRONMENT=production` и `LOG_LEVEL=WARNING`
-
-Все настройки теперь централизованы в файле `.env`!
+**Готово!** Теперь все работает через один порт с простой настройкой ngrok.
