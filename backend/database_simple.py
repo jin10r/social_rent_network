@@ -3,7 +3,7 @@
 """
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import declarative_base
-from models import Base
+from models_simple import Base
 import os
 
 # Для тестирования используем SQLite
