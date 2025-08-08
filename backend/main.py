@@ -132,6 +132,18 @@ async def root():
 async def health_check():
     return {"status": "healthy"}
 
+@app.get("/api/test-auth")
+async def test_auth(
+    current_user_data: dict = Depends(verify_telegram_auth_secure),
+    db: AsyncSession = Depends(get_database)
+):
+    """Test authentication endpoint"""
+    return {
+        "status": "authenticated",
+        "user_data": current_user_data,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
 # Metro stations endpoints
 @app.get("/api/metro/stations", response_model=List[str])
 async def get_metro_stations():
