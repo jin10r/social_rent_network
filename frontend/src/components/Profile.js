@@ -2,6 +2,18 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Camera, MapPin, DollarSign, Calendar, Edit3, Search, CheckCircle, AlertCircle } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { userAPI, metroAPI } from '../services/api';
+
+// Простая проверка Telegram WebApp
+const checkTelegramWebApp = () => {
+  const webApp = window.Telegram?.WebApp;
+  return {
+    isAvailable: !!webApp,
+    hasInitData: !!(webApp?.initData),
+    hasUser: !!(webApp?.initDataUnsafe?.user),
+    initDataLength: webApp?.initData?.length || 0,
+    user: webApp?.initDataUnsafe?.user || null
+  };
+};
 import { useTelegram } from '../hooks/useTelegram';
 
 const Profile = () => {
