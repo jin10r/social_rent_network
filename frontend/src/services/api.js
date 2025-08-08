@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost';
+// Use relative '/api' by default so all calls go through nginx proxy
+const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || '/api';
 
 // Create axios instance
 const api = axios.create({
@@ -10,31 +11,31 @@ const api = axios.create({
   },
 });
 
-// Mock auth token for development
-const getMockToken = () => {
-  // Return JSON string directly (second option that backend supports)
-  return JSON.stringify({
+// Build proper Telegram WebApp Bearer token (secure mode)
+const getTelegramAuthToken = () => {
+  // Prefer real initData from Telegram WebApp
+  if (window.Telegram?.WebApp?.initData) {
+    return `Bearer ${window.Telegram.WebApp.initData}`;
+  }
+  // Fallbacks for development
+  const user = window.Telegram?.WebApp?.initDataUnsafe?.user;
+  if (user) {
+    const mockInitData = `user=${encodeURIComponent(JSON.stringify(user))}&auth_date=${Math.floor(Date.now() / 1000)}`;
+    return `Bearer ${mockInitData}`;
+  }
+  // Legacy local dev JSON fallback (not secure, but helps CI/dev)
+  return `Bearer ${JSON.stringify({
     id: 123456789,
     first_name: 'Test',
     last_name: 'User',
     username: 'testuser'
-  });
-};
-
-// Get auth token from Telegram or use mock
-const getAuthToken = () => {
-  if (window.Telegram?.WebApp?.initData) {
-    // Используем initData напрямую как Bearer token
-    return `Bearer ${window.Telegram.WebApp.initData}`;
-  }
-  // Для разработки используем Bearer token с JSON данными
-  return `Bearer ${getMockToken()}`;
+  })}`;
 };
 
 // Add auth header to requests
 api.interceptors.request.use(
   (config) => {
-    const token = getAuthToken();
+    const token = getTelegramAuthToken();
     if (token) {
       config.headers.Authorization = token;
     }
@@ -48,7 +49,6 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Handle unauthorized
       console.error('Unauthorized access');
     }
     return Promise.reject(error);
@@ -57,54 +57,37 @@ api.interceptors.response.use(
 
 // Metro stations API
 export const metroAPI = {
-  // Get all metro stations
-  getStations: () => api.get('/api/metro/stations'),
-  
-  // Search metro stations
-  searchStations: (query) => api.get('/api/metro/search', { params: { query } }),
-  
-  // Get station info
-  getStationInfo: (stationName) => api.get(`/api/metro/station/${encodeURIComponent(stationName)}`),
+  getStations: () => api.get('/metro/stations'),
+  searchStations: (query) => api.get('/metro/search', { params: { query } }),
+  getStationInfo: (stationName) => api.get(`/metro/station/${encodeURIComponent(stationName)}`),
 };
 
-// API functions
+// User API (add secure endpoints compatibility)
 export const userAPI = {
-  // Create or update user
-  createUser: (userData) => api.post('/api/users/', userData),
-  
-  // Get current user
-  getCurrentUser: () => api.get('/api/users/me'),
-  
-  // Update user profile
-  updateUser: (userData) => api.put('/api/users/profile', userData),
-  
-  // Get potential matches
-  getPotentialMatches: (limit = 10) => 
-    api.get('/api/users/potential-matches', { params: { limit } }),
-  
-  // Like a user
-  likeUser: (userId) => api.post(`/api/users/${userId}/like`),
-  
-  // Get matches
-  getMatches: () => api.get('/api/users/matches'),
-  
-  // Get user's liked listings
-  getUserLikedListings: (userId) => 
-    api.get(`/api/users/${userId}/liked-listings`),
+  // Create or update user (secure)
+  createOrUpdateUser: (userData) => api.post('/users/secure', userData),
+
+  // Get current user (secure)
+  getCurrentUser: () => api.get('/users/me/secure'),
+
+  // Update user profile (secure) — this fixes "updateProfile is not a function"
+  updateProfile: (userData) => api.put('/users/profile/secure', userData),
+
+  // Backward-compatible older endpoints (still available if needed)
+  createUser: (userData) => api.post('/users/', userData),
+  updateUser: (userData) => api.put('/users/profile', userData),
+
+  getPotentialMatches: (limit = 10) => api.get('/users/potential-matches', { params: { limit } }),
+  likeUser: (userId) => api.post(`/users/${userId}/like`),
+  getMatches: () => api.get('/users/matches'),
+  getUserLikedListings: (userId) => api.get(`/users/${userId}/liked-listings`),
 };
 
 export const listingAPI = {
-  // Search listings
-  searchListings: (params) => api.get('/api/listings/', { params }),
-  
-  // Get listings for current user
-  getUserListings: () => api.get('/api/listings/search'),
-  
-  // Like a listing
-  likeListing: (listingId) => api.post(`/api/listings/${listingId}/like`),
-  
-  // Get liked listings
-  getLikedListings: () => api.get('/api/listings/liked'),
+  searchListings: (params) => api.get('/listings/', { params }),
+  getUserListings: () => api.get('/listings/search'),
+  likeListing: (listingId) => api.post(`/listings/${listingId}/like`),
+  getLikedListings: () => api.get('/listings/liked'),
 };
 
 export default api;

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Camera, MapPin, DollarSign, Calendar, Edit3, Search, CheckCircle, AlertCircle } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { useTelegram } from '../hooks/useTelegram';
-import { userAPI, metroAPI } from '../services/api';
+import { userAPI, metroAPI } from '../services/api_new';
 
 // Простая проверка Telegram WebApp
 const checkTelegramWebApp = () => {
