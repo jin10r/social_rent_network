@@ -144,7 +144,7 @@ frontend:
 backend:
   - task: "Profile Save Logic"
     implemented: true
-    working: "YES" # ✅ ИСПРАВЛЕНО
+    working: true # ✅ ИСПРАВЛЕНО И ПРОТЕСТИРОВАНО
     file: "/app/backend/main_simple.py"
     stuck_count: 0
     priority: "critical"
@@ -153,6 +153,9 @@ backend:
       - working: "YES"
         agent: "main_agent"
         comment: "Backend profile saving completely restored - API endpoints working"
+      - working: true
+        agent: "testing"
+        comment: "✅ COMPREHENSIVE TESTING COMPLETED: All profile flow endpoints working perfectly. GET /api/users/me/secure returns 200 with id and telegram_id. PUT /api/users/profile/secure successfully updates all fields (first_name, last_name, age, bio, price_min, price_max, metro_station, search_radius). GET /api/metro/stations returns 200 with array including 'Сокольники'. All response codes and data validation passed."
 
 metadata:
   created_by: "main_agent"
