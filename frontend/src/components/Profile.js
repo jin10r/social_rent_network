@@ -38,36 +38,20 @@ const Profile = () => {
     search_radius: '1000'
   });
 
-  // Проверка статуса Telegram WebApp
+  // Проверка статуса Telegram WebApp (одноразово, без бесконечных перерендеров)
   useEffect(() => {
-    const checkAuth = () => {
-      const status = checkTelegramWebApp();
-      setAuthStatus(status);
-      console.log('Telegram WebApp Status:', status);
-    };
-
-    checkAuth();
-    
-    // Периодически проверяем статус
-    const interval = setInterval(checkAuth, 1000);
-    setTimeout(() => clearInterval(interval), 5000); // Останавливаем через 5 секунд
-    
-    return () => clearInterval(interval);
+    const status = checkTelegramWebApp();
+    setAuthStatus(status);
   }, []);
 
   const loadProfile = useCallback(async () => {
-    console.log('=== Loading Profile ===');
     try {
       setLoading(true);
-      
-      // Проверяем статус аутентификации
-      const webAppStatus = checkTelegramWebApp();
-      console.log('WebApp Status:', webAppStatus);
-      
+
+      // Подгружаем профиль
       const response = await userAPI.getCurrentUser();
-      console.log('Profile loaded successfully:', response.data);
-      
       const userData = response.data;
+
       setProfile({
         first_name: userData.first_name || '',
         last_name: userData.last_name || '',
@@ -80,51 +64,44 @@ const Profile = () => {
         photo_url: userData.photo_url
       });
       setMetroQuery(userData.metro_station || '');
-      
+
       // Обновляем контекст пользователя
       setCurrentUser(userData);
-      
     } catch (error) {
-      console.error('Failed to load profile:', error);
-      
+      // Если профиль не найден — префилим данными из Telegram
       if (error.response?.status === 404) {
-        console.log('User profile not found, will create new one');
-        // Используем данные из Telegram WebApp если доступны
-        if (authStatus?.user) {
+        const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+        if (tgUser) {
           setProfile(prev => ({
             ...prev,
-            first_name: authStatus.user.first_name || '',
-            last_name: authStatus.user.last_name || '',
-            photo_url: authStatus.user.photo_url
+            first_name: tgUser.first_name || '',
+            last_name: tgUser.last_name || '',
+            photo_url: tgUser.photo_url
           }));
         }
-      } else if (error.response?.status === 403) {
-        console.log('Authentication failed, user needs to authorize');
-        showAlert('Ошибка авторизации. Пожалуйста, перезапустите приложение через Telegram.');
-      } else if (error.code === 'NETWORK_ERROR' || error.message === 'Network Error') {
-        console.log('Network error occurred');
+      } else if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
         showAlert('Ошибка сети. Проверьте подключение к интернету и попробуйте снова.');
       } else {
         const errorMessage = error.response?.data?.detail || error.message || 'Неизвестная ошибка';
-        console.log('Other error occurred:', errorMessage);
         showAlert(`Ошибка загрузки профиля: ${errorMessage}`);
       }
     } finally {
       setLoading(false);
     }
-  }, [authStatus, showAlert, setCurrentUser]);
+  }, [setCurrentUser, showAlert]);
 
   const loadMetroStations = useCallback(async () => {
     try {
       const response = await metroAPI.getStations();
       setMetroStations(response.data || []);
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Error loading metro stations:', error);
     }
   }, []);
 
   useEffect(() => {
-    console.log('Profile component mounted, calling loadProfile and loadMetroStations');
+    // Загружаем профиль и станции один раз при монтировании
     loadProfile();
     loadMetroStations();
   }, [loadProfile, loadMetroStations]);
@@ -141,7 +118,7 @@ const Profile = () => {
   }, [currentUser]);
 
   useEffect(() => {
-    // Filter metro stations based on query
+    // Фильтрация станций метро
     if (metroQuery.trim() === '') {
       setFilteredStations(metroStations.map(name => ({ name })).slice(0, 10));
     } else {
@@ -153,34 +130,24 @@ const Profile = () => {
   }, [metroQuery, metroStations]);
 
   const handleSave = async () => {
-    console.log('--- STEP 1: handleSave function started ---');
-    
     // Валидация
-    console.log('--- STEP 2: Validating profile data ---', profile);
     if (!profile.first_name || !profile.first_name.trim()) {
-      console.log('Validation failed: first_name is missing.');
       showAlert('Пожалуйста, введите имя');
       return;
     }
-
     if (!profile.age) {
-      console.log('Validation failed: age is missing.');
       showAlert('Пожалуйста, укажите возраст');
       return;
     }
-
     if (!profile.metro_station) {
-      console.log('Validation failed: metro_station is missing.');
       showAlert('Пожалуйста, выберите станцию метро');
       return;
     }
-    console.log('--- STEP 3: Validation passed ---');
 
     setSaving(true);
     hapticFeedback('impact', 'light');
 
     try {
-      console.log('--- STEP 4: Preparing data for API call ---');
       const userData = {
         first_name: profile.first_name.trim(),
         last_name: profile.last_name?.trim() || '',
@@ -191,65 +158,38 @@ const Profile = () => {
         metro_station: profile.metro_station.trim(),
         search_radius: profile.search_radius ? parseInt(profile.search_radius, 10) : null,
       };
-      
-      console.log('--- STEP 5: Processed user data to be sent ---', userData);
-      
-      // Используем новый безопасный API
-      console.log('--- STEP 6: Calling userAPI.updateProfile ---');
+
       const response = await userAPI.updateProfile(userData);
-      console.log('--- STEP 7: API call successful ---', response);
-      
-      console.log('Profile saved successfully:', response.data);
-      
-      // Обновляем состояние
       setCurrentUser(response.data);
       setEditing(false);
       setShowMetroSuggestions(false);
-      
-      // Уведомления
+
       showAlert('✅ Профиль успешно сохранен!');
       hapticFeedback('notification', 'success');
-      
-      // Уведомляем Telegram о обновлении профиля
+
       if (window.Telegram?.WebApp?.sendData) {
         window.Telegram.WebApp.sendData(JSON.stringify({
           type: 'profile_updated',
-          user: response.data
+          user: response.data,
         }));
       }
-      
     } catch (error) {
-      console.error('--- !!! PROFILE SAVE ERROR !!! ---');
-      console.error('Error object:', error);
-      if (error.response) {
-          console.error('Error response data:', error.response.data);
-          console.error('Error response status:', error.response.status);
-          console.error('Error response headers:', error.response.headers);
-      } else if (error.request) {
-          console.error('Error request:', error.request);
-      } else {
-          console.error('Error message:', error.message);
-      }
-      
       let errorMessage = 'Ошибка при сохранении профиля';
-      
       if (error.response?.status === 401 || error.response?.status === 403) {
         errorMessage = 'Ошибка авторизации. Пожалуйста, перезапустите приложение через Telegram.';
       } else if (error.response?.status === 400) {
         errorMessage = `Неверные данные: ${error.response.data.detail || 'проверьте поля'}`;
-      } else if (error.code === 'NETWORK_ERROR' || error.message === 'Network Error') {
+      } else if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
         errorMessage = 'Ошибка сети. Проверьте подключение к интернету и попробуйте снова.';
       } else if (error.response?.data?.detail) {
         errorMessage = error.response.data.detail;
       } else if (error.message) {
         errorMessage = `Ошибка: ${error.message}`;
       }
-      
       showAlert(errorMessage);
       hapticFeedback('notification', 'error');
     } finally {
       setSaving(false);
-      console.log('--- STEP 8: handleSave function finished ---');
     }
   };
 
@@ -310,11 +250,8 @@ const Profile = () => {
                 fontSize: '14px'
               }}
               onClick={() => {
-                console.log('Edit button clicked, editing:', !editing);
                 setEditing(!editing);
-                if (editing) {
-                  setShowMetroSuggestions(false);
-                }
+                if (editing) setShowMetroSuggestions(false);
                 hapticFeedback('impact', 'light');
               }}
             >
@@ -359,7 +296,6 @@ const Profile = () => {
         {/* Basic Info */}
         <div className="tg-section">
           <div className="tg-section-header">Основная информация</div>
-          
           <div className="tg-list-item">
             <div className="mb-2">
               <label className="tg-text-hint">Имя *</label>
@@ -379,7 +315,7 @@ const Profile = () => {
 
           <div className="tg-list-item">
             <div className="mb-2">
-              <label className="tg-text-hint">Фамилия</label>
+              <label className="tg-text-hинт">Фамилия</label>
             </div>
             {editing ? (
               <input
@@ -437,7 +373,7 @@ const Profile = () => {
         {/* Search Preferences */}
         <div className="tg-section">
           <div className="tg-section-header">Предпочтения по жилью</div>
-          
+
           <div className="tg-list-item">
             <div className="mb-2 flex items-center gap-2">
               <DollarSign size={16} />
@@ -466,7 +402,7 @@ const Profile = () => {
               ) : (
                 <div>
                   {profile.price_min || profile.price_max ? (
-                    `${profile.price_min ? profile.price_min.toLocaleString() : '0'} - ${profile.price_max ? profile.price_max.toLocaleString() : '∞'} ₽`
+                    `${profile.price_min ? Number(profile.price_min).toLocaleString() : '0'} - ${profile.price_max ? Number(profile.price_max).toLocaleString() : '∞'} ₽`
                   ) : (
                     'Не указано'
                   )}
@@ -502,7 +438,7 @@ const Profile = () => {
                     }} 
                   />
                 </div>
-                
+
                 {showMetroSuggestions && filteredStations.length > 0 && (
                   <div 
                     style={{
@@ -529,10 +465,10 @@ const Profile = () => {
                           backgroundColor: 'transparent'
                         }}
                         onMouseEnter={(e) => {
-                          e.target.style.backgroundColor = 'var(--tg-theme-section-bg-color, #f5f5f5)';
+                          e.currentTarget.style.backgroundColor = 'var(--tg-theme-section-bg-color, #f5f5f5)';
                         }}
                         onMouseLeave={(e) => {
-                          e.target.style.backgroundColor = 'transparent';
+                          e.currentTarget.style.backgroundColor = 'transparent';
                         }}
                         onClick={() => handleMetroStationSelect(station)}
                       >
@@ -555,7 +491,7 @@ const Profile = () => {
           <div className="tg-list-item">
             <div className="mb-2">
               <label className="tg-text-hint">
-                Радиус поиска: {Math.round(profile.search_radius / 1000)} км
+                Радиус поиска: {Math.round((Number(profile.search_radius) || 0) / 1000)} км
               </label>
             </div>
             {editing ? (
@@ -569,7 +505,7 @@ const Profile = () => {
                 onChange={(e) => setProfile(prev => ({ ...prev, search_radius: e.target.value }))}
               />
             ) : (
-              <div>{Math.round(profile.search_radius / 1000)} км</div>
+              <div>{Math.round((Number(profile.search_radius) || 0) / 1000)} км</div>
             )}
           </div>
         </div>

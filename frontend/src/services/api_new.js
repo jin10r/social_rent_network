@@ -1,222 +1,105 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+// IMPORTANT: Use ONLY environment variable. No hardcoded fallbacks.
+// REACT_APP_BACKEND_URL is configured by the platform and already points to the backend with the /api prefix
+const API_BASE_URL = process.env.REACT_APP_BACKEND_URL;
 
-// Создаем instance axios
+if (!API_BASE_URL) {
+  // Fail fast in console to surface misconfiguration in CI/dev
+  // Do NOT fallback to localhost to avoid CORS and routing issues in Kubernetes
+  // eslint-disable-next-line no-console
+  console.error('REACT_APP_BACKEND_URL is not defined. Please set it in frontend/.env');
+}
+
+// Axios instance
 const api = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: { 'Content-Type': 'application/json' },
 });
 
-/**
- * Получение правильного токена аутентификации Telegram WebApp
- */
+// Get Telegram WebApp token (non-blocking)
 const getTelegramAuthToken = () => {
-  // Проверяем наличие Telegram WebApp
-  if (window.Telegram?.WebApp?.initData) {
-    const initData = window.Telegram.WebApp.initData;
-    
-    console.log('Using Telegram WebApp initData for authentication');
-    console.log('InitData length:', initData.length);
-    
-    // Возвращаем initData как Bearer token
-    return `Bearer ${initData}`;
+  try {
+    if (window.Telegram?.WebApp?.initData) {
+      const initData = window.Telegram.WebApp.initData;
+      return `Bearer ${initData}`;
+    }
+    const user = window.Telegram?.WebApp?.initDataUnsafe?.user;
+    if (user) {
+      const mockInitData = `user=${encodeURIComponent(JSON.stringify(user))}&auth_date=${Math.floor(Date.now() / 1000)}`;
+      return `Bearer ${mockInitData}`;
+    }
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.warn('Failed to read Telegram WebApp data');
   }
-  
-  // Для режима разработки или когда initData недоступен
-  console.log('No Telegram WebApp initData available, using fallback');
-  
-  // Проверяем есть ли хотя бы пользователь в WebApp
-  const user = window.Telegram?.WebApp?.initDataUnsafe?.user;
-  if (user) {
-    console.log('Found user in initDataUnsafe:', user);
-    // Создаем минимальный initData для разработки
-    const mockInitData = `user=${encodeURIComponent(JSON.stringify(user))}&auth_date=${Math.floor(Date.now() / 1000)}`;
-    return `Bearer ${mockInitData}`;
-  }
-  
-  // Полный fallback - возвращаем null вместо выброса ошибки
-  console.warn('No Telegram WebApp data available, requests will be sent without authorization');
   return null;
 };
 
-/**
- * Проверка готовности Telegram WebApp
- */
-const waitForTelegramWebApp = () => {
-  return new Promise((resolve) => {
+// Non-blocking wait for WebApp
+const waitForTelegramWebApp = () => new Promise((resolve) => {
+  if (window.Telegram?.WebApp) return resolve();
+  const id = setInterval(() => {
     if (window.Telegram?.WebApp) {
-      // WebApp уже доступен
+      clearInterval(id);
       resolve();
-      return;
     }
-    
-    // Ждем загрузки WebApp
-    const checkInterval = setInterval(() => {
-      if (window.Telegram?.WebApp) {
-        clearInterval(checkInterval);
-        resolve();
-      }
-    }, 100);
-    
-    // Timeout через 5 секунд
-    setTimeout(() => {
-      clearInterval(checkInterval);
-      resolve(); // Продолжаем даже без WebApp для режима разработки
-    }, 5000);
-  });
-};
+  }, 100);
+  setTimeout(() => { clearInterval(id); resolve(); }, 5000);
+});
 
-// Инициализируем WebApp при загрузке
 waitForTelegramWebApp();
 
-// Добавляем заголовок авторизации к запросам
+// Attach Authorization header when available
 api.interceptors.request.use(
-  async (config) => {
-    try {
-      const token = getTelegramAuthToken();
-      if (token) {
-        config.headers.Authorization = token;
-        console.log('Added authorization header to request:', config.url);
-      } else {
-        console.log('No auth token available for request:', config.url);
-      }
-    } catch (error) {
-      console.error('Failed to get auth token:', error);
-      // Продолжаем без токена вместо выброса ошибки
-      console.log('Continuing request without authorization token');
-    }
+  (config) => {
+    const token = getTelegramAuthToken();
+    if (token) config.headers.Authorization = token;
     return config;
   },
-  (error) => {
-    console.error('Request interceptor error:', error);
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Обработка ошибок ответов
 api.interceptors.response.use(
-  (response) => {
-    console.log('API Response:', {
-      url: response.config.url,
-      status: response.status,
-      method: response.config.method
-    });
-    return response;
-  },
+  (response) => response,
   (error) => {
-    console.error('API Error:', {
-      url: error.config?.url,
-      status: error.response?.status,
-      method: error.config?.method,
-      message: error.message,
-      data: error.response?.data
-    });
-    
-    if (error.response?.status === 401) {
-      console.error('Authentication failed - user needs to authorize');
-      // Можно показать пользователю сообщение об ошибке аутентификации
-    }
-    
     return Promise.reject(error);
   }
 );
 
-// API функции для работы со станциями метро
+// NOTE: Since baseURL already points to the "/api" gateway, all paths below MUST be without leading "/api"
 export const metroAPI = {
-  // Получить все станции метро
-  getStations: () => api.get('/api/metro/stations'),
-  
-  // Поиск станций метро
-  searchStations: (query) => api.get('/api/metro/search', { params: { query } }),
-  
-  // Получить информацию о станции
-  getStationInfo: (stationName) => 
-    api.get(`/api/metro/station/${encodeURIComponent(stationName)}`),
+  getStations: () => api.get('/metro/stations'),
+  searchStations: (query) => api.get('/metro/search', { params: { query } }),
+  getStationInfo: (stationName) => api.get(`/metro/station/${encodeURIComponent(stationName)}`),
 };
 
-// API функции для работы с пользователями
 export const userAPI = {
-  // Создать или обновить пользователя (надежная версия)
-  createOrUpdateUser: async (userData) => {
-    console.log('Creating/updating user with data:', userData);
-    try {
-      const response = await api.post('/api/users/secure', userData);
-      console.log('User create/update successful:', response.data);
-      return response;
-    } catch (error) {
-      console.error('User create/update failed:', error.response?.data || error.message);
-      throw error;
-    }
-  },
-  
-  // Получить текущего пользователя
-  getCurrentUser: async () => {
-    console.log('Getting current user');
-    try {
-      const response = await api.get('/api/users/me/secure');
-      console.log('Get current user successful:', response.data);
-      return response;
-    } catch (error) {
-      console.error('Get current user failed:', error.response?.data || error.message);
-      throw error;
-    }
-  },
-  
-  // Обновить профиль пользователя (надежная версия)
-  updateProfile: async (userData) => {
-    console.log('Updating user profile with data:', userData);
-    try {
-      const response = await api.put('/api/users/profile/secure', userData);
-      console.log('Profile update successful:', response.data);
-      return response;
-    } catch (error) {
-      console.error('Profile update failed:', error.response?.data || error.message);
-      throw error;
-    }
-  },
-  
-  // Получить потенциальные совпадения
-  getPotentialMatches: (limit = 10) => 
-    api.get('/api/users/potential-matches', { params: { limit } }),
-  
-  // Лайкнуть пользователя
-  likeUser: (userId) => api.post(`/api/users/${userId}/like`),
-  
-  // Получить совпадения
-  getMatches: () => api.get('/api/users/matches'),
-  
-  // Получить понравившиеся объявления пользователя
-  getUserLikedListings: (userId) => 
-    api.get(`/api/users/${userId}/liked-listings`),
+  createOrUpdateUser: async (userData) => api.post('/users/secure', userData),
+  getCurrentUser: async () => api.get('/users/me/secure'),
+  updateProfile: async (userData) => api.put('/users/profile/secure', userData),
+  // legacy (unused on this screen):
+  createUser: (userData) => api.post('/users/', userData),
+  updateUser: (userData) => api.put('/users/profile', userData),
+  getPotentialMatches: (limit = 10) => api.get('/users/potential-matches', { params: { limit } }),
+  likeUser: (userId) => api.post(`/users/${userId}/like`),
+  getMatches: () => api.get('/users/matches'),
+  getUserLikedListings: (userId) => api.get(`/users/${userId}/liked-listings`),
 };
 
-// API функции для работы с объявлениями
 export const listingAPI = {
-  // Поиск объявлений
-  searchListings: (params) => api.get('/api/listings/', { params }),
-  
-  // Получить объявления для текущего пользователя
-  getUserListings: () => api.get('/api/listings/search'),
-  
-  // Лайкнуть объявление
-  likeListing: (listingId) => api.post(`/api/listings/${listingId}/like`),
-  
-  // Получить понравившиеся объявления
-  getLikedListings: () => api.get('/api/listings/liked'),
+  searchListings: (params) => api.get('/listings/', { params }),
+  getUserListings: () => api.get('/listings/search'),
+  likeListing: (listingId) => api.post(`/listings/${listingId}/like`),
+  getLikedListings: () => api.get('/listings/liked'),
 };
 
-// Функция для проверки готовности Telegram WebApp
-export const checkTelegramWebApp = () => {
-  return {
-    isAvailable: !!window.Telegram?.WebApp,
-    hasInitData: !!(window.Telegram?.WebApp?.initData),
-    hasUser: !!(window.Telegram?.WebApp?.initDataUnsafe?.user),
-    initDataLength: window.Telegram?.WebApp?.initData?.length || 0,
-    user: window.Telegram?.WebApp?.initDataUnsafe?.user || null
-  };
-};
+export const checkTelegramWebApp = () => ({
+  isAvailable: !!window.Telegram?.WebApp,
+  hasInitData: !!(window.Telegram?.WebApp?.initData),
+  hasUser: !!(window.Telegram?.WebApp?.initDataUnsafe?.user),
+  initDataLength: window.Telegram?.WebApp?.initData?.length || 0,
+  user: window.Telegram?.WebApp?.initDataUnsafe?.user || null,
+});
 
 export default api;
