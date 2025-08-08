@@ -14,5 +14,5 @@ shapely==2.0.2
 geopy==2.4.1
 python-dotenv==1.0.0
 faker==20.1.0
-numpy&lt;2.0
+numpy<2.0
 aiosqlite==0.20.0
