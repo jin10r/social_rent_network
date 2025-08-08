@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Camera, MapPin, DollarSign, Calendar, Edit3, Search, CheckCircle, AlertCircle } from 'lucide-react';
 import { useUser } from '../context/UserContext';
+import { useTelegram } from '../hooks/useTelegram';
 import { userAPI, metroAPI } from '../services/api';
 
 // Простая проверка Telegram WebApp
@@ -14,7 +15,6 @@ const checkTelegramWebApp = () => {
     user: webApp?.initDataUnsafe?.user || null
   };
 };
-import { useTelegram } from '../hooks/useTelegram';
 
 const Profile = () => {
   const { currentUser, setCurrentUser } = useUser();
