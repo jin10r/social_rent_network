@@ -57,11 +57,18 @@ async def check_database_health():
                 raise e
 
 async def init_database():
-    """Initialize database tables"""
+    """Initialize database tables (ensure PostGIS extension exists)"""
     # Wait for database to be ready
     await check_database_health()
     
     async with engine.begin() as conn:
+        # Ensure PostGIS extension is available
+        try:
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
+            logging.info("PostGIS extension ensured (CREATE EXTENSION IF NOT EXISTS postgis)")
+        except Exception as e:
+            logging.warning(f"Could not create PostGIS extension automatically: {e}")
+        
         # Create all tables
         await conn.run_sync(Base.metadata.create_all)
         logging.info("Database tables created successfully")
