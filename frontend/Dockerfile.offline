@@ -1,0 +1,25 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json yarn.lock ./
+
+# Copy offline packages if available
+COPY packages/node ./packages/node
+
+# Install dependencies (offline if packages available)
+RUN if [ -d "packages/node/yarn-cache" ]; then \
+        yarn install --offline --cache-folder packages/node/yarn-cache; \
+    else \
+        yarn install; \
+    fi
+
+# Copy application code
+COPY . .
+
+# Expose port
+EXPOSE 3000
+
+# Start development server
+CMD ["yarn", "start"]

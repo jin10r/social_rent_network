@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Social Rent - Тест профиля</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #17212b;
+            color: white;
+        }
+        
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        
+        .success {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        
+        .error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        
+        .info {
+            background: #d1ecf1;
+            border-color: #bee5eb;
+            color: #0c5460;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #2c3e50;
+            color: white;
+        }
+        
+        .form-group {
+            margin: 15px 0;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        pre {
+            background: #f8f9fa;
+            color: #333;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        
+        .telegram-status {
+            background: #17212b;
+            border: 1px solid #3d5a80;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+    </style>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+    <h1>🏠 Social Rent - Тест профиля</h1>
+    
+    <div id="telegram-status" class="telegram-status">
+        <h3>📱 Статус Telegram WebApp</h3>
+        <div id="webAppStatus">Загрузка...</div>
+    </div>
+
+    <div class="form-group">
+        <h3>🔐 Тест аутентификации</h3>
+        <button onclick="testAuth()">Проверить аутентификацию</button>
+        <button onclick="loadProfile()">Загрузить профиль</button>
+        <div id="authResult"></div>
+    </div>
+
+    <div class="form-group">
+        <h3>👤 Профиль пользователя</h3>
+        
+        <div class="form-group">
+            <label>Имя *</label>
+            <input type="text" id="firstName" placeholder="Введите ваше имя">
+        </div>
+        
+        <div class="form-group">
+            <label>Фамилия</label>
+            <input type="text" id="lastName" placeholder="Введите вашу фамилию">
+        </div>
+        
+        <div class="form-group">
+            <label>Возраст *</label>
+            <input type="number" id="age" min="18" max="100" placeholder="Введите ваш возраст">
+        </div>
+        
+        <div class="form-group">
+            <label>О себе</label>
+            <textarea id="bio" rows="3" placeholder="Расскажите о себе..."></textarea>
+        </div>
+        
+        <div class="form-group">
+            <label>Станция метро *</label>
+            <select id="metroStation">
+                <option value="">Выберите станцию метро</option>
+                <option value="Сокольники">Сокольники</option>
+                <option value="Красносельская">Красносельская</option>
+                <option value="Комсомольская">Комсомольская</option>
+                <option value="Тверская">Тверская</option>
+                <option value="Театральная">Театральная</option>
+                <option value="Арбатская">Арбатская</option>
+                <option value="Киевская">Киевская</option>
+                <option value="Университет">Университет</option>
+                <option value="ВДНХ">ВДНХ</option>
+                <option value="Алексеевская">Алексеевская</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>Бюджет от (₽/месяц)</label>
+            <input type="number" id="priceMin" min="0" placeholder="30000">
+        </div>
+        
+        <div class="form-group">
+            <label>Бюджет до (₽/месяц)</label>
+            <input type="number" id="priceMax" min="0" placeholder="60000">
+        </div>
+        
+        <div class="form-group">
+            <label>Радиус поиска: <span id="radiusValue">1000</span> м</label>
+            <input type="range" id="searchRadius" min="500" max="10000" step="500" value="1000" 
+                   oninput="document.getElementById('radiusValue').textContent = this.value">
+        </div>
+        
+        <button onclick="saveProfile()">Сохранить профиль</button>
+        <div id="profileResult"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:8001';
+        
+        // Проверяем статус Telegram WebApp
+        function checkTelegramWebApp() {
+            const webApp = window.Telegram?.WebApp;
+            const statusDiv = document.getElementById('webAppStatus');
+            
+            if (webApp) {
+                const user = webApp.initDataUnsafe?.user;
+                const hasInitData = !!webApp.initData;
+                
+                statusDiv.innerHTML = `
+                    <div><strong>WebApp:</strong> ✅ Доступен</div>
+                    <div><strong>InitData:</strong> ${hasInitData ? '✅' : '❌'} (${webApp.initData?.length || 0} символов)</div>
+                    <div><strong>Пользователь:</strong> ${user ? '✅' : '❌'}</div>
+                    ${user ? `<div><strong>ID:</strong> ${user.id}</div>
+                    <div><strong>Имя:</strong> ${user.first_name} ${user.last_name || ''}</div>
+                    <div><strong>Username:</strong> @${user.username || 'не указан'}</div>` : ''}
+                `;
+                
+                // Заполняем поля формы данными из Telegram
+                if (user) {
+                    document.getElementById('firstName').value = user.first_name || '';
+                    document.getElementById('lastName').value = user.last_name || '';
+                }
+                
+                // Настраиваем WebApp
+                webApp.ready();
+                webApp.expand();
+                
+                return {
+                    isAvailable: true,
+                    hasInitData: hasInitData,
+                    user: user,
+                    initData: webApp.initData
+                };
+            } else {
+                statusDiv.innerHTML = `
+                    <div><strong>WebApp:</strong> ❌ Не доступен</div>
+                    <div>Используется режим разработки с мок данными</div>
+                `;
+                
+                return {
+                    isAvailable: false,
+                    hasInitData: false,
+                    user: null,
+                    initData: null
+                };
+            }
+        }
+        
+        // Получение токена аутентификации
+        function getAuthToken() {
+            const webApp = window.Telegram?.WebApp;
+            
+            if (webApp?.initData) {
+                console.log('Using Telegram initData for auth');
+                return `Bearer ${webApp.initData}`;
+            } else {
+                console.log('Using mock data for auth');
+                const mockData = {
+                    id: 123456789,
+                    first_name: 'Test',
+                    last_name: 'User',
+                    username: 'testuser'
+                };
+                return `Bearer ${JSON.stringify(mockData)}`;
+            }
+        }
+        
+        // Тест аутентификации
+        async function testAuth() {
+            const resultDiv = document.getElementById('authResult');
+            resultDiv.innerHTML = '<div class="info">Проверка аутентификации...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/test-auth`, {
+                    headers: {
+                        'Authorization': getAuthToken(),
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h4>✅ Аутентификация успешна!</h4>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h4>❌ Ошибка аутентификации</h4>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Сетевая ошибка</h4>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Загрузка профиля
+        async function loadProfile() {
+            const resultDiv = document.getElementById('authResult');
+            resultDiv.innerHTML = '<div class="info">Загрузка профиля...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/users/me/secure`, {
+                    headers: {
+                        'Authorization': getAuthToken(),
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Заполняем форму данными профиля
+                    if (data.first_name) document.getElementById('firstName').value = data.first_name;
+                    if (data.last_name) document.getElementById('lastName').value = data.last_name;
+                    if (data.age) document.getElementById('age').value = data.age;
+                    if (data.bio) document.getElementById('bio').value = data.bio;
+                    if (data.metro_station) document.getElementById('metroStation').value = data.metro_station;
+                    if (data.price_min) document.getElementById('priceMin').value = data.price_min;
+                    if (data.price_max) document.getElementById('priceMax').value = data.price_max;
+                    if (data.search_radius) {
+                        document.getElementById('searchRadius').value = data.search_radius;
+                        document.getElementById('radiusValue').textContent = data.search_radius;
+                    }
+                    
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h4>✅ Профиль загружен!</h4>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h4>❌ Ошибка загрузки профиля</h4>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Сетевая ошибка</h4>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Сохранение профиля
+        async function saveProfile() {
+            const resultDiv = document.getElementById('profileResult');
+            
+            // Валидация
+            const firstName = document.getElementById('firstName').value.trim();
+            const age = document.getElementById('age').value;
+            const metroStation = document.getElementById('metroStation').value;
+            
+            if (!firstName) {
+                resultDiv.innerHTML = '<div class="error">❌ Пожалуйста, введите имя</div>';
+                return;
+            }
+            
+            if (!age) {
+                resultDiv.innerHTML = '<div class="error">❌ Пожалуйста, укажите возраст</div>';
+                return;
+            }
+            
+            if (!metroStation) {
+                resultDiv.innerHTML = '<div class="error">❌ Пожалуйста, выберите станцию метро</div>';
+                return;
+            }
+            
+            const profileData = {
+                first_name: firstName,
+                last_name: document.getElementById('lastName').value.trim() || '',
+                age: parseInt(age),
+                bio: document.getElementById('bio').value.trim() || '',
+                metro_station: metroStation,
+                price_min: parseInt(document.getElementById('priceMin').value) || null,
+                price_max: parseInt(document.getElementById('priceMax').value) || null,
+                search_radius: parseInt(document.getElementById('searchRadius').value)
+            };
+            
+            resultDiv.innerHTML = '<div class="info">💾 Сохранение профиля...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/users/profile/secure`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': getAuthToken(),
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(profileData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h4>✅ Профиль успешно сохранен!</h4>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                    
+                    // Показываем уведомление в Telegram
+                    if (window.Telegram?.WebApp?.showAlert) {
+                        window.Telegram.WebApp.showAlert('✅ Профиль успешно сохранен!');
+                    }
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h4>❌ Ошибка сохранения профиля</h4>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Сетевая ошибка</h4>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Инициализация при загрузке
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Инициализация приложения');
+            checkTelegramWebApp();
+            
+            // Автоматически загружаем профиль через 2 секунды
+            setTimeout(() => {
+                console.log('📥 Автозагрузка профиля');
+                loadProfile();
+            }, 2000);
+        });
+    </script>
+</body>
+</html>
