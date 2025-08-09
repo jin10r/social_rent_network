@@ -6,6 +6,10 @@ Select backend app based on environment:
 This lets us run locally with SQLite but in docker/k8s with Postgres.
 """
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 USE_POSTGRES = os.getenv("USE_POSTGRES", "false").lower() in {"1", "true", "yes"}
 
