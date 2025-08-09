@@ -1,15 +1,8 @@
 import axios from 'axios';
 
-// IMPORTANT: Use ONLY environment variable. No hardcoded fallbacks.
-// REACT_APP_BACKEND_URL is configured by the platform and already points to the backend with the /api prefix
-const API_BASE_URL = process.env.REACT_APP_BACKEND_URL;
-
-if (!API_BASE_URL) {
-  // Fail fast in console to surface misconfiguration in CI/dev
-  // Do NOT fallback to localhost to avoid CORS and routing issues in Kubernetes
-  // eslint-disable-next-line no-console
-  console.error('REACT_APP_BACKEND_URL is not defined. Please set it in frontend/.env');
-}
+// Prefer environment variable, but safely fallback to '/api' so requests go through nginx proxy
+// This ensures routes like '/users/secure' are proxied to backend as '/api/users/secure'
+const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || '/api';
 
 // Axios instance
 const api = axios.create({
@@ -18,16 +11,12 @@ const api = axios.create({
 });
 
 // Get Telegram WebApp token (non-blocking)
+// IMPORTANT: Send header ONLY when real initData is present; do not fabricate tokens
 const getTelegramAuthToken = () => {
   try {
     if (window.Telegram?.WebApp?.initData) {
       const initData = window.Telegram.WebApp.initData;
       return `Bearer ${initData}`;
-    }
-    const user = window.Telegram?.WebApp?.initDataUnsafe?.user;
-    if (user) {
-      const mockInitData = `user=${encodeURIComponent(JSON.stringify(user))}&auth_date=${Math.floor(Date.now() / 1000)}`;
-      return `Bearer ${mockInitData}`;
     }
   } catch (e) {
     // eslint-disable-next-line no-console
@@ -67,7 +56,7 @@ api.interceptors.response.use(
   }
 );
 
-// NOTE: Since baseURL already points to the "/api" gateway, all paths below MUST be without leading "/api"
+// NOTE: Since baseURL points to the "/api" gateway, all paths below MUST be without leading "/api"
 export const metroAPI = {
   getStations: () => api.get('/metro/stations'),
   searchStations: (query) => api.get('/metro/search', { params: { query } }),

@@ -216,6 +216,19 @@ async def update_user_profile(
     logger.info(f"Current user telegram_id: {current_user.telegram_id}")
     
     try:
+        # Normalize search_radius: accept km if small values (< 1000)
+        if user_data.search_radius is not None and user_data.search_radius < 1000:
+            user_data.search_radius = user_data.search_radius * 1000
+
+        # Validate metro station if provided
+        if user_data.metro_station:
+            info = get_metro_station_info(user_data.metro_station)
+            if not info:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Unknown metro station: {user_data.metro_station}"
+                )
+
         user_service = UserService(db)
         user = await user_service.update_user(current_user.id, user_data)
         logger.info(f"Profile updated successfully for user {current_user.id}")
@@ -380,6 +393,10 @@ async def create_or_update_user_secure_endpoint(
                 setattr(base_user, field, value)
                 logger.debug(f"Updated field {field} = {value}")
         
+        # Нормализуем search_radius: если явно передали значение < 1000, считаем, что это км
+        if user_data.search_radius is not None and user_data.search_radius < 1000:
+            user_data.search_radius = user_data.search_radius * 1000
+
         # Обновляем локацию если указана станция метро
         if user_data.metro_station:
             from metro_stations import get_metro_station_info
@@ -391,6 +408,10 @@ async def create_or_update_user_secure_endpoint(
                 logger.info(f"Updated location to: {user_data.metro_station}")
             else:
                 logger.warning(f"Metro station not found: {user_data.metro_station}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Unknown metro station: {user_data.metro_station}"
+                )
         elif user_data.lat is not None and user_data.lon is not None:
             from sqlalchemy import func
             location_text = f'POINT({user_data.lon} {user_data.lat})'
@@ -457,6 +478,10 @@ async def update_user_profile_secure_endpoint(
                 setattr(base_user, field, value)
                 logger.debug(f"Updated field {field} = {value}")
         
+        # Нормализуем search_radius: если явно передали значение < 1000, считаем, что это км
+        if user_data.search_radius is not None and user_data.search_radius < 1000:
+            user_data.search_radius = user_data.search_radius * 1000
+
         # Обновляем локацию если указана станция метро
         if user_data.metro_station:
             from metro_stations import get_metro_station_info
@@ -465,9 +490,13 @@ async def update_user_profile_secure_endpoint(
                 from sqlalchemy import func
                 location_text = f'POINT({station_info["lon"]} {station_info["lat"]})'
                 base_user.search_location = func.ST_GeogFromText(location_text)
-                logger.info(f"Updated location to: {user_data.metro_station}")
+                logger.info(f"Updated location to: {user_data.metro_station} -> {location_text}")
             else:
                 logger.warning(f"Metro station not found: {user_data.metro_station}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Unknown metro station: {user_data.metro_station}"
+                )
         elif user_data.lat is not None and user_data.lon is not None:
             from sqlalchemy import func
             location_text = f'POINT({user_data.lon} {user_data.lat})'

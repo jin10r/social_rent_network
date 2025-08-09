@@ -117,8 +117,14 @@ const ProfileNew = () => {
         ...prev,
         first_name: currentUser.first_name || prev.first_name,
         last_name: currentUser.last_name || prev.last_name,
-        photo_url: currentUser.photo_url || prev.photo_url
+        photo_url: currentUser.photo_url || prev.photo_url,
+        metro_station: currentUser.metro_station || prev.metro_station
       }));
+      
+      // Устанавливаем поисковый запрос для станции метро
+      if (currentUser.metro_station) {
+        setMetroQuery(currentUser.metro_station);
+      }
     }
   }, [currentUser]);
 
@@ -153,6 +159,12 @@ const ProfileNew = () => {
       return;
     }
 
+    // Проверяем, что выбранная станция есть в списке
+    if (!metroStations.includes(profile.metro_station)) {
+      showAlert('Пожалуйста, выберите станцию метро из списка');
+      return;
+    }
+
     setSaving(true);
     hapticFeedback('impact', 'light');
 
@@ -173,8 +185,19 @@ const ProfileNew = () => {
       
       console.log('Processed user data:', userData);
       
-      // Используем новый безопасный API
-      const response = await userAPI.updateProfile(userData);
+      // Используем доступный метод сохранения с безопасными проверками
+      const hasUpdateProfile = userAPI && typeof userAPI.updateProfile === 'function';
+      const hasCreateOrUpdate = userAPI && typeof userAPI.createOrUpdateUser === 'function';
+      let response;
+      if (hasUpdateProfile) {
+        response = await userAPI.updateProfile(userData);
+      } else if (hasCreateOrUpdate) {
+        response = await userAPI.createOrUpdateUser(userData);
+      } else if (typeof userAPI.updateUser === 'function') {
+        response = await userAPI.updateUser(userData);
+      } else {
+        throw new Error('Нет доступного метода сохранения профиля в userAPI');
+      }
       
       console.log('Profile saved successfully:', response.data);
       
@@ -203,7 +226,7 @@ const ProfileNew = () => {
       
       let errorMessage = 'Ошибка при сохранении профиля';
       
-      if (error.response?.status === 401) {
+      if (error.response?.status === 401 || error.response?.status === 403) {
         errorMessage = 'Ошибка аутентификации. Пожалуйста, перезапустите приложение';
       } else if (error.response?.status === 400) {
         errorMessage = `Неверные данные: ${error.response.data.detail || ''}`;
@@ -224,12 +247,15 @@ const ProfileNew = () => {
     setMetroQuery(stationName);
     setShowMetroSuggestions(false);
     hapticFeedback('selection');
+    
+    // Показываем уведомление о выборе
+    showAlert(`✅ Выбрана станция: ${stationName}`);
   };
 
   const handleMetroInputChange = (e) => {
     const value = e.target.value;
     setMetroQuery(value);
-    setProfile(prev => ({ ...prev, metro_station: value }));
+    // Не устанавливаем metro_station сразу, только при выборе из списка
     setShowMetroSuggestions(true);
   };
 
@@ -466,12 +492,16 @@ const ProfileNew = () => {
               <>
                 <div style={{ position: 'relative' }}>
                   <input
-                    className="tg-input"
+                    className={`tg-input ${profile.metro_station && metroStations.includes(profile.metro_station) ? '' : 'border-red-300'}`}
                     type="text"
                     value={metroQuery}
                     onChange={handleMetroInputChange}
                     onFocus={() => setShowMetroSuggestions(true)}
-                    placeholder="Начните вводить название станции..."
+                    onBlur={() => {
+                      // Закрываем список через небольшую задержку, чтобы успеть кликнуть
+                      setTimeout(() => setShowMetroSuggestions(false), 200);
+                    }}
+                    placeholder="Выберите станцию из списка..."
                     autoComplete="off"
                   />
                   <Search 
@@ -485,6 +515,58 @@ const ProfileNew = () => {
                     }} 
                   />
                 </div>
+                
+                {/* Показываем текущую выбранную станцию */}
+                {profile.metro_station && (
+                  <div style={{ 
+                    marginTop: '8px', 
+                    padding: '8px 12px', 
+                    backgroundColor: 'var(--tg-theme-section-bg-color, #f5f5f5)', 
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    color: 'var(--tg-theme-text-color, #000)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <div>
+                      <strong>Выбрано:</strong> {profile.metro_station}
+                    </div>
+                    <button
+                      onClick={() => {
+                        setProfile(prev => ({ ...prev, metro_station: '' }));
+                        setMetroQuery('');
+                        showAlert('Станция метро очищена');
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--tg-theme-destructive-text-color, #dc3545)',
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                        padding: '4px 8px',
+                        borderRadius: '4px'
+                      }}
+                    >
+                      Очистить
+                    </button>
+                  </div>
+                )}
+                
+                {/* Предупреждение если станция не выбрана из списка */}
+                {metroQuery && !metroStations.includes(metroQuery) && (
+                  <div style={{ 
+                    marginTop: '8px', 
+                    padding: '8px 12px', 
+                    backgroundColor: '#fff3cd', 
+                    border: '1px solid #ffeaa7',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    color: '#856404'
+                  }}>
+                    ⚠️ Выберите станцию из списка ниже
+                  </div>
+                )}
                 
                 {showMetroSuggestions && filteredStations.length > 0 && (
                   <div 
@@ -502,6 +584,15 @@ const ProfileNew = () => {
                       boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                     }}
                   >
+                    <div style={{
+                      padding: '8px 16px',
+                      fontSize: '12px',
+                      color: 'var(--tg-theme-hint-color, #999)',
+                      borderBottom: '1px solid var(--tg-theme-hint-color, #eee)',
+                      backgroundColor: 'var(--tg-theme-section-bg-color, #f5f5f5)'
+                    }}>
+                      Выберите станцию из списка:
+                    </div>
                     {filteredStations.map((station, index) => (
                       <div
                         key={index}
@@ -526,7 +617,27 @@ const ProfileNew = () => {
                 )}
               </>
             ) : (
-              <div>{profile.metro_station || 'Не указано'}</div>
+              <div>
+                {profile.metro_station ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>{profile.metro_station}</span>
+                    {metroStations.includes(profile.metro_station) && (
+                      <span style={{ 
+                        fontSize: '12px', 
+                        color: 'var(--tg-theme-button-color, #007bff)',
+                        backgroundColor: 'var(--tg-theme-button-color, #007bff)',
+                        color: 'white',
+                        padding: '2px 6px',
+                        borderRadius: '4px'
+                      }}>
+                        ✓
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  'Не указано'
+                )}
+              </div>
             )}
           </div>
 

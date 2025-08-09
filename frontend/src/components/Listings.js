@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Heart, MapPin, DollarSign, Home, RefreshCw } from 'lucide-react';
-import { listingAPI } from '../services/api';
+import { listingAPI } from '../services/api_new';
 import { useTelegram } from '../hooks/useTelegram';
 import { useUser } from '../context/UserContext';
 

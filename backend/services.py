@@ -31,6 +31,9 @@ class UserService:
                 if station_info:
                     location_text = f'POINT({station_info["lon"]} {station_info["lat"]})'
                     existing_user.search_location = func.ST_GeogFromText(location_text)
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.info(f"Updated user location to: {user_data.metro_station} -> {location_text}")
             elif user_data.lat is not None and user_data.lon is not None:
                 location_text = f'POINT({user_data.lon} {user_data.lat})'
                 existing_user.search_location = func.ST_GeogFromText(location_text)
@@ -50,6 +53,9 @@ class UserService:
                 if station_info:
                     location_text = f'POINT({station_info["lon"]} {station_info["lat"]})'
                     new_user.search_location = func.ST_GeogFromText(location_text)
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.info(f"Set new user location to: {user_data.metro_station} -> {location_text}")
             elif user_data.lat is not None and user_data.lon is not None:
                 location_text = f'POINT({user_data.lon} {user_data.lat})'
                 new_user.search_location = func.ST_GeogFromText(location_text)

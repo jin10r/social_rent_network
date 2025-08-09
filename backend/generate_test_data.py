@@ -67,13 +67,28 @@ def generate_moscow_coordinates() -> Tuple[float, float]:
 
 def generate_user_data() -> dict:
     """Генерирует данные для одного пользователя"""
-    lat, lon = generate_moscow_coordinates()
     age = random.randint(18, 45)
     
     # Генерируем бюджет в зависимости от возраста
     base_budget = random.randint(20000, 150000)
     price_min = base_budget - random.randint(0, 15000)
     price_max = base_budget + random.randint(10000, 50000)
+    
+    # Выбираем случайную станцию метро
+    metro_station = random.choice(METRO_STATIONS)
+    
+    # Получаем координаты станции из справочника
+    from metro_stations import get_metro_station_info
+    station_info = get_metro_station_info(metro_station)
+    
+    if station_info:
+        # Используем координаты из справочника
+        lat, lon = station_info['lat'], station_info['lon']
+        search_location = f'POINT({lon} {lat})'
+    else:
+        # Если станция не найдена в справочнике, генерируем случайные координаты
+        lat, lon = generate_moscow_coordinates()
+        search_location = f'POINT({lon} {lat})'
     
     return {
         'id': str(uuid.uuid4()),
@@ -86,8 +101,8 @@ def generate_user_data() -> dict:
         'bio': fake.text(max_nb_chars=200),
         'price_min': price_min,
         'price_max': price_max,
-        'metro_station': random.choice(METRO_STATIONS),
-        'search_location': f'POINT({lon} {lat})',
+        'metro_station': metro_station,
+        'search_location': search_location,
         'search_radius': random.choice([500, 1000, 1500, 2000, 3000, 5000]),
         'is_active': True,
         'created_at': fake.date_time_between(start_date='-30d', end_date='now'),
@@ -96,7 +111,6 @@ def generate_user_data() -> dict:
 
 def generate_listing_data() -> dict:
     """Генерирует данные для одного объявления"""
-    lat, lon = generate_moscow_coordinates()
     rooms = random.randint(1, 4)
     
     # Генерируем цену в зависимости от количества комнат
@@ -142,6 +156,20 @@ def generate_listing_data() -> dict:
     
     metro_station = random.choice(METRO_STATIONS)
     metro_distance = random.randint(200, 1500) * 50  # в метрах, кратно 50
+    
+    # Получаем координаты станции из справочника
+    from metro_stations import get_metro_station_info
+    station_info = get_metro_station_info(metro_station)
+    
+    if station_info:
+        # Используем координаты станции как базовые, добавляем небольшое отклонение
+        base_lat, base_lon = station_info['lat'], station_info['lon']
+        # Добавляем случайное отклонение в пределах 2 км от станции
+        lat = base_lat + random.uniform(-0.02, 0.02)  # примерно ±2 км по широте
+        lon = base_lon + random.uniform(-0.02, 0.02)  # примерно ±2 км по долготе
+    else:
+        # Если станция не найдена, генерируем случайные координаты
+        lat, lon = generate_moscow_coordinates()
     
     # Генерируем адрес
     street_names = [

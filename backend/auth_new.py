@@ -94,10 +94,19 @@ def validate_telegram_webapp_data(init_data: str, bot_token: str) -> Dict:
         
         # Парсим информацию о пользователе
         if 'user' in parsed_data:
-            # Декодируем URL-encoded строку пользователя
-            user_json_string = unquote(parsed_data['user'])
-            logger.info(f"Decoding user data string: {user_json_string}")
-            user_data = json.loads(user_json_string)
+            # В parsed_data значения уже декодированы parse_qsl, повторный unquote ломает JSON
+            user_json_string = parsed_data['user']
+            logger.info(f"Decoding user data string (already URL-decoded): {user_json_string}")
+            try:
+                user_data = json.loads(user_json_string)
+            except json.JSONDecodeError:
+                # На всякий случай пробуем один раз декодировать, если источник дал нераскодированную строку
+                try:
+                    from urllib.parse import unquote as _unquote
+                    user_data = json.loads(_unquote(user_json_string))
+                except Exception as e:
+                    logger.error(f"JSON decode failed for user field: {e}")
+                    raise ValueError("Invalid JSON in user data")
             logger.info(f"Successfully extracted user data for user_id: {user_data.get('id')}")
             return user_data
         else:
@@ -239,7 +248,12 @@ async def create_or_get_user_from_telegram_data(
                 photo_url=user_data.get('photo_url')
             )
             
-            new_user = await user_service.create_user(user_create_data)
+            # Use existing service method to create or update by telegram_id
+            # This guarantees unique constraint satisfaction and sets base fields
+            new_user = await user_service.create_or_update_user(
+                telegram_id=telegram_id,
+                user_data=user_create_data
+            )
             logger.info(f"Created new user: {new_user.id}")
             return new_user
             
