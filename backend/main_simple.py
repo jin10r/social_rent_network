@@ -55,14 +55,14 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Configure CORS for ngrok - temporarily disabled for debugging
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=["*"],
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
+# Configure CORS for ngrok
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Фиктивная аутентификация для тестирования
 async def get_mock_current_user(db: AsyncSession = Depends(get_database)) -> User:
